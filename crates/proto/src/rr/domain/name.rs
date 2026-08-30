@@ -74,6 +74,20 @@ impl Name {
         Ok(())
     }
 
+    /// Extends the name with a run of labels already in wire form, validated by the caller.
+    fn extend_from_wire(&mut self, run: &[u8], labels: u8) -> Result<(), DecodeError> {
+        let new_len = self.encoded_len() + run.len();
+
+        if new_len > Self::MAX_LENGTH {
+            return Err(DecodeError::DomainNameTooLong(new_len));
+        };
+
+        self.label_data.extend_from_slice(run);
+        self.label_count += labels;
+
+        Ok(())
+    }
+
     /// Randomize the case of ASCII alpha characters in a name
     #[cfg(feature = "std")]
     pub fn randomize_label_case(&mut self) {
@@ -1328,13 +1342,50 @@ fn read_inner(decoder: &mut BinDecoder<'_>, name: &mut Name) -> Result<(), Decod
             }
             // labels must have a maximum length of 63
             LabelParseState::Label => {
-                let label = decoder
-                    .read_character_data()?
-                    .verify_unwrap(|l| l.len() <= 63)
-                    .map_err(|l| DecodeError::LabelBytesTooLong(l.len()))?;
+                // With labels stored in wire form, a run of consecutive plain labels can be
+                // validated in one scan and appended as one slice. The scan stops at the root
+                // byte, a pointer, an unrecognized label code, the end of a pointed-to region,
+                // the name length budget, or a label running past the buffer; whatever stopped
+                // it is left to the surrounding state machine, which handles it as before.
+                let remaining = decoder.remaining_slice();
+                let rel_max = match ptr_max_idx {
+                    Some(max_idx) => max_idx - decoder.index(),
+                    None => remaining.len(),
+                };
 
-                name.extend_name(label)
-                    .map_err(|_| DecodeError::DomainNameTooLong(label.len()))?;
+                let mut run_len = 0;
+                let mut run_labels = 0;
+                while run_len < rel_max {
+                    let Some(&length) = remaining.get(run_len) else {
+                        break;
+                    };
+                    if length == 0 || length & 0b1100_0000 != 0 {
+                        break;
+                    }
+                    let step = 1 + length as usize;
+                    if remaining.len() - run_len < step
+                        || name.encoded_len() + run_len + step > Name::MAX_LENGTH
+                    {
+                        break;
+                    }
+                    run_len += step;
+                    run_labels += 1;
+                }
+
+                if run_len > 0 {
+                    let run = decoder
+                        .read_slice(run_len)?
+                        .unverified(/*validated during the scan above*/);
+                    name.extend_from_wire(run, run_labels)?;
+                } else {
+                    let label = decoder
+                        .read_character_data()?
+                        .verify_unwrap(|l| l.len() <= 63)
+                        .map_err(|l| DecodeError::LabelBytesTooLong(l.len()))?;
+
+                    name.extend_name(label)
+                        .map_err(|_| DecodeError::DomainNameTooLong(label.len()))?;
+                }
 
                 // reset to collect more data
                 LabelParseState::LabelLengthOrPointer
