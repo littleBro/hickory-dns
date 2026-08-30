@@ -585,7 +585,10 @@ impl Name {
 
     fn from_encoded_str<E: LabelEnc>(local: &str, origin: Option<&Self>) -> ProtoResult<Self> {
         let mut name = Self::new();
-        let mut label = String::new();
+        // Labels are at most 63 bytes, so the buffer stays inline for every valid label and
+        // parsing does not allocate.
+        let mut label = TinyVec::<[u8; 64]>::new();
+        let mut ch_buf = [0u8; 4];
 
         let mut state = ParseState::Label;
 
@@ -601,11 +604,13 @@ impl Name {
             match state {
                 ParseState::Label => match ch {
                     '.' => {
-                        name = name.append_label(E::to_label(&label)?)?;
+                        name = name.append_label(E::to_label(label_str(&label))?)?;
                         label.clear();
                     }
                     '\\' => state = ParseState::Escape1,
-                    ch if !ch.is_control() && !ch.is_whitespace() => label.push(ch),
+                    ch if !ch.is_control() && !ch.is_whitespace() => {
+                        label.extend_from_slice(ch.encode_utf8(&mut ch_buf).as_bytes())
+                    }
                     _ => return Err(format!("unrecognized char: {ch}").into()),
                 },
                 ParseState::Escape1 => {
@@ -616,7 +621,7 @@ impl Name {
                         );
                     } else {
                         // it's a single escaped char
-                        label.push(ch);
+                        label.extend_from_slice(ch.encode_utf8(&mut ch_buf).as_bytes());
                         state = ParseState::Label;
                     }
                 }
@@ -640,7 +645,7 @@ impl Name {
                                 .ok_or_else(|| ProtoError::from(format!("illegal char: {ch}")))?;
                         let new: char = char::from_u32(val)
                             .ok_or_else(|| ProtoError::from(format!("illegal char: {ch}")))?;
-                        label.push(new);
+                        label.extend_from_slice(new.encode_utf8(&mut ch_buf).as_bytes());
                         state = ParseState::Label;
                     } else {
                         return Err(format!("unrecognized char: {ch}").into());
@@ -650,7 +655,7 @@ impl Name {
         }
 
         if !label.is_empty() {
-            name = name.append_label(E::to_label(&label)?)?;
+            name = name.append_label(E::to_label(label_str(&label))?)?;
         }
 
         // Check if the last character processed was an unescaped `.`
@@ -1132,6 +1137,11 @@ impl Hash for Name {
             .flatten()
             .for_each(|&b| state.write_u8(b.to_ascii_lowercase()));
     }
+}
+
+/// The label buffer is built from `char::encode_utf8` output only, so it is always valid UTF-8.
+fn label_str(label: &[u8]) -> &str {
+    core::str::from_utf8(label).expect("label buffer is built from encoded chars")
 }
 
 enum ParseState {
