@@ -1160,10 +1160,16 @@ impl PartialEq<Self> for Name {
 impl Hash for Name {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.is_fqdn.hash(state);
-        // Note: case-insensitive like `PartialEq`
-        self.iter()
-            .flatten()
-            .for_each(|&b| state.write_u8(b.to_ascii_lowercase()));
+        // Note: case-insensitive like `PartialEq`. The whole wire-form buffer is folded and
+        // hashed: length prefix bytes are at most 63, below any ASCII letter, so they pass
+        // through the fold unchanged, and equal names have equal folded buffers.
+        let mut folded = [0u8; 64];
+        for chunk in self.label_data.chunks(folded.len()) {
+            for (dst, src) in folded.iter_mut().zip(chunk) {
+                *dst = src.to_ascii_lowercase();
+            }
+            state.write(&folded[..chunk.len()]);
+        }
     }
 }
 
