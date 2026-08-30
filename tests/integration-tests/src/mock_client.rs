@@ -197,11 +197,11 @@ impl<O: OnSend + Unpin> DnsHandle for MockClientHandle<O> {
 }
 
 pub fn ns_record(name: Name, nsname: Name) -> Record {
-    Record::from_rdata(name, 86400, RData::NS(NS(nsname)))
+    Record::from_rdata(name, 86400, RData::NS(Box::new(NS(nsname))))
 }
 
 pub fn cname_record(name: Name, cname: Name) -> Record {
-    Record::from_rdata(name, 86400, RData::CNAME(CNAME(cname)))
+    Record::from_rdata(name, 86400, RData::CNAME(Box::new(CNAME(cname))))
 }
 
 pub fn v4_record(name: Name, ip: Ipv4Addr) -> Record {
@@ -210,7 +210,7 @@ pub fn v4_record(name: Name, ip: Ipv4Addr) -> Record {
 
 pub fn soa_record(name: Name, mname: Name) -> Record {
     let soa = SOA::new(mname, Name::default(), 1, 3600, 60, 86400, 3600);
-    Record::from_rdata(name, 86400, RData::SOA(soa))
+    Record::from_rdata(name, 86400, RData::SOA(Box::new(soa)))
 }
 
 pub fn build_request(query: Query) -> DnsRequest {

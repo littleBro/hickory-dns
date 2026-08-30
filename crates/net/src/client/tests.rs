@@ -68,7 +68,7 @@ async fn readme_example() {
 }
 
 fn soa_record(serial: u32) -> Record {
-    let soa = RData::SOA(SOA::new(
+    let soa = RData::SOA(Box::new(SOA::new(
         Name::from_ascii("example.com.").unwrap(),
         Name::from_ascii("admin.example.com.").unwrap(),
         serial,
@@ -76,7 +76,7 @@ fn soa_record(serial: u32) -> Record {
         60,
         60,
         60,
-    ));
+    )));
     Record::from_rdata(Name::from_ascii("example.com.").unwrap(), 600, soa)
 }
 

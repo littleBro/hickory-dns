@@ -38,7 +38,7 @@ fn create_records(records: &mut InMemoryZoneHandler) {
         Record::from_rdata(
             origin.clone(),
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::parse("sns.dns.icann.org.", None).unwrap(),
                 Name::parse("noc.dns.icann.org.", None).unwrap(),
                 2015082403,
@@ -46,7 +46,7 @@ fn create_records(records: &mut InMemoryZoneHandler) {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         ),
         0,
     );
@@ -55,7 +55,9 @@ fn create_records(records: &mut InMemoryZoneHandler) {
         Record::from_rdata(
             origin.clone(),
             86400,
-            RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap())),
+            RData::NS(Box::new(NS(
+                Name::parse("a.iana-servers.net.", None).unwrap()
+            ))),
         ),
         0,
     );
@@ -63,7 +65,9 @@ fn create_records(records: &mut InMemoryZoneHandler) {
         Record::from_rdata(
             origin.clone(),
             86400,
-            RData::NS(NS(Name::parse("b.iana-servers.net.", None).unwrap())),
+            RData::NS(Box::new(NS(
+                Name::parse("b.iana-servers.net.", None).unwrap()
+            ))),
         ),
         0,
     );
@@ -252,7 +256,7 @@ async fn test_catalog_lookup_soa() {
     assert_eq!(answers.first().unwrap().record_type(), RecordType::SOA);
     assert_eq!(
         answers.first().unwrap().data,
-        RData::SOA(SOA::new(
+        RData::SOA(Box::new(SOA::new(
             Name::parse("sns.dns.icann.org.", None).unwrap(),
             Name::parse("noc.dns.icann.org.", None).unwrap(),
             2015082403,
@@ -260,7 +264,7 @@ async fn test_catalog_lookup_soa() {
             3600,
             1209600,
             3600,
-        ))
+        )))
     );
 
     // assert SOA requests get NS records
@@ -271,12 +275,16 @@ async fn test_catalog_lookup_soa() {
     assert_eq!(ns.first().unwrap().record_type(), RecordType::NS);
     assert_eq!(
         ns.first().unwrap().data,
-        RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap()))
+        RData::NS(Box::new(NS(
+            Name::parse("a.iana-servers.net.", None).unwrap()
+        )))
     );
     assert_eq!(ns.last().unwrap().record_type(), RecordType::NS);
     assert_eq!(
         ns.last().unwrap().data,
-        RData::NS(NS(Name::parse("b.iana-servers.net.", None).unwrap()))
+        RData::NS(Box::new(NS(
+            Name::parse("b.iana-servers.net.", None).unwrap()
+        )))
     );
 }
 
@@ -324,7 +332,7 @@ async fn test_catalog_nx_soa() {
     assert_eq!(authorities.first().unwrap().record_type(), RecordType::SOA);
     assert_eq!(
         authorities.first().unwrap().data,
-        RData::SOA(SOA::new(
+        RData::SOA(Box::new(SOA::new(
             Name::parse("sns.dns.icann.org.", None).unwrap(),
             Name::parse("noc.dns.icann.org.", None).unwrap(),
             2015082403,
@@ -332,7 +340,7 @@ async fn test_catalog_nx_soa() {
             3600,
             1209600,
             3600,
-        ))
+        )))
     );
 }
 
@@ -382,7 +390,7 @@ async fn test_catalog_soa_query_for_nx_name() {
     assert_eq!(authorities.first().unwrap().record_type(), RecordType::SOA);
     assert_eq!(
         authorities.first().unwrap().data,
-        RData::SOA(SOA::new(
+        RData::SOA(Box::new(SOA::new(
             Name::parse("sns.dns.icann.org.", None).unwrap(),
             Name::parse("noc.dns.icann.org.", None).unwrap(),
             2015082403,
@@ -390,7 +398,7 @@ async fn test_catalog_soa_query_for_nx_name() {
             3600,
             1209600,
             3600,
-        ))
+        )))
     );
 }
 
@@ -449,7 +457,7 @@ async fn test_axfr_allow_all() {
     let soa = Record::from_rdata(
         origin.clone().into(),
         3600,
-        RData::SOA(SOA::new(
+        RData::SOA(Box::new(SOA::new(
             Name::parse("sns.dns.icann.org.", None).unwrap(),
             Name::parse("noc.dns.icann.org.", None).unwrap(),
             2015082403,
@@ -457,7 +465,7 @@ async fn test_axfr_allow_all() {
             3600,
             1209600,
             3600,
-        )),
+        ))),
     );
 
     let mut catalog = Catalog::new();
@@ -498,7 +506,7 @@ async fn test_axfr_allow_all() {
         Record::from_rdata(
             origin.clone().into(),
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::parse("sns.dns.icann.org.", None).unwrap(),
                 Name::parse("noc.dns.icann.org.", None).unwrap(),
                 2015082403,
@@ -506,17 +514,21 @@ async fn test_axfr_allow_all() {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         ),
         Record::from_rdata(
             origin.clone().into(),
             86400,
-            RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap())),
+            RData::NS(Box::new(NS(
+                Name::parse("a.iana-servers.net.", None).unwrap()
+            ))),
         ),
         Record::from_rdata(
             origin.clone().into(),
             86400,
-            RData::NS(NS(Name::parse("b.iana-servers.net.", None).unwrap())),
+            RData::NS(Box::new(NS(
+                Name::parse("b.iana-servers.net.", None).unwrap()
+            ))),
         ),
         Record::from_rdata(
             origin.clone().into(),
@@ -541,7 +553,7 @@ async fn test_axfr_allow_all() {
         Record::from_rdata(
             origin.into(),
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::parse("sns.dns.icann.org.", None).unwrap(),
                 Name::parse("noc.dns.icann.org.", None).unwrap(),
                 2015082403,
@@ -549,7 +561,7 @@ async fn test_axfr_allow_all() {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         ),
     ];
 
@@ -913,7 +925,7 @@ async fn test_cname_alias() {
     assert_eq!(answers[0].record_type(), RecordType::CNAME);
     assert_eq!(
         answers[0].data,
-        RData::CNAME(CNAME(Name::from_str("www.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(Name::from_str("www.example.com.").unwrap())))
     );
     assert_eq!(answers[1].record_type(), RecordType::A);
     assert_eq!(answers[1].data, RData::A(A::new(93, 184, 215, 14)));
@@ -964,12 +976,14 @@ async fn test_cname_chain() {
     assert_eq!(answers[0].record_type(), RecordType::CNAME);
     assert_eq!(
         answers[0].data,
-        RData::CNAME(CNAME(Name::from_str("alias.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(
+            Name::from_str("alias.example.com.").unwrap()
+        )))
     );
     assert_eq!(answers[1].record_type(), RecordType::CNAME);
     assert_eq!(
         answers[1].data,
-        RData::CNAME(CNAME(Name::from_str("www.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(Name::from_str("www.example.com.").unwrap())))
     );
     assert_eq!(answers[2].record_type(), RecordType::A);
     assert_eq!(answers[2].data, RData::A(A::new(93, 184, 215, 14)));

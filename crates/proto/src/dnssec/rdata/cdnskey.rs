@@ -7,6 +7,7 @@
 
 //! CDNSKEY type and related implementations
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -123,7 +124,7 @@ impl CDNSKEY {
 
 impl From<CDNSKEY> for RData {
     fn from(value: CDNSKEY) -> Self {
-        Self::DNSSEC(DNSSECRData::CDNSKEY(value))
+        Self::DNSSEC(Box::new(DNSSECRData::CDNSKEY(value)))
     }
 }
 
@@ -168,7 +169,10 @@ impl<'r> RecordDataDecodable<'r> for CDNSKEY {
 impl RecordData for CDNSKEY {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::DNSSEC(DNSSECRData::CDNSKEY(cdnskey)) => Some(cdnskey),
+            RData::DNSSEC(rdata) => match rdata.as_ref() {
+                DNSSECRData::CDNSKEY(cdnskey) => Some(cdnskey),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -178,7 +182,7 @@ impl RecordData for CDNSKEY {
     }
 
     fn into_rdata(self) -> RData {
-        RData::DNSSEC(DNSSECRData::CDNSKEY(self))
+        RData::DNSSEC(Box::new(DNSSECRData::CDNSKEY(self)))
     }
 }
 

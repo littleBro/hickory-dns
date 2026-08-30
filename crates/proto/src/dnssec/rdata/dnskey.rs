@@ -7,6 +7,7 @@
 
 //! public key record data for signing zone records
 
+use alloc::boxed::Box;
 use alloc::{borrow::ToOwned, string::String, sync::Arc, vec::Vec};
 use core::{fmt, str::FromStr};
 
@@ -390,7 +391,7 @@ impl DNSKEY {
 
 impl From<DNSKEY> for RData {
     fn from(key: DNSKEY) -> Self {
-        Self::DNSSEC(DNSSECRData::DNSKEY(key))
+        Self::DNSSEC(Box::new(DNSSECRData::DNSKEY(key)))
     }
 }
 
@@ -439,7 +440,10 @@ impl<'r> RecordDataDecodable<'r> for DNSKEY {
 impl RecordData for DNSKEY {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::DNSSEC(DNSSECRData::DNSKEY(csync)) => Some(csync),
+            RData::DNSSEC(rdata) => match rdata.as_ref() {
+                DNSSECRData::DNSKEY(csync) => Some(csync),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -449,7 +453,7 @@ impl RecordData for DNSKEY {
     }
 
     fn into_rdata(self) -> RData {
-        RData::DNSSEC(DNSSECRData::DNSKEY(self))
+        RData::DNSSEC(Box::new(DNSSECRData::DNSKEY(self)))
     }
 }
 

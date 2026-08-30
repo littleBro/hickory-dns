@@ -8,6 +8,7 @@
 //! SVCB records, see [RFC 9460 SVCB and HTTPS Resource Records, Nov 2023](https://datatracker.ietf.org/doc/html/rfc9460)
 #![allow(clippy::use_self)]
 
+use alloc::boxed::Box;
 use alloc::{
     string::{String, ToString},
     vec::Vec,
@@ -1466,7 +1467,7 @@ impl RecordData for SVCB {
     }
 
     fn into_rdata(self) -> RData {
-        RData::SVCB(self)
+        RData::SVCB(Box::new(self))
     }
 }
 

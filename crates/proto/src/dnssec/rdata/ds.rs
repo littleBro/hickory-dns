@@ -7,6 +7,7 @@
 
 //! pointer record from parent zone to child zone for dnskey proof
 
+use alloc::boxed::Box;
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use core::{
     fmt::{self, Display, Formatter},
@@ -302,7 +303,10 @@ impl<'r> RecordDataDecodable<'r> for DS {
 impl RecordData for DS {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::DNSSEC(DNSSECRData::DS(csync)) => Some(csync),
+            RData::DNSSEC(rdata) => match rdata.as_ref() {
+                DNSSECRData::DS(csync) => Some(csync),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -312,7 +316,7 @@ impl RecordData for DS {
     }
 
     fn into_rdata(self) -> RData {
-        RData::DNSSEC(DNSSECRData::DS(self))
+        RData::DNSSEC(Box::new(DNSSECRData::DS(self)))
     }
 }
 

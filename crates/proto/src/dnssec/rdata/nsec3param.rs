@@ -7,6 +7,7 @@
 
 //! parameters used for the nsec3 hash method
 
+use alloc::boxed::Box;
 use alloc::{string::ToString, vec::Vec};
 use core::fmt;
 
@@ -211,7 +212,10 @@ impl<'r> BinDecodable<'r> for NSEC3PARAM {
 impl RecordData for NSEC3PARAM {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::DNSSEC(DNSSECRData::NSEC3PARAM(csync)) => Some(csync),
+            RData::DNSSEC(rdata) => match rdata.as_ref() {
+                DNSSECRData::NSEC3PARAM(csync) => Some(csync),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -221,7 +225,7 @@ impl RecordData for NSEC3PARAM {
     }
 
     fn into_rdata(self) -> RData {
-        RData::DNSSEC(DNSSECRData::NSEC3PARAM(self))
+        RData::DNSSEC(Box::new(DNSSECRData::NSEC3PARAM(self)))
     }
 }
 

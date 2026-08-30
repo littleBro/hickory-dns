@@ -7,6 +7,7 @@
 
 //! All record data structures and related serialization methods
 
+use alloc::boxed::Box;
 use alloc::fmt;
 
 #[cfg(feature = "serde")]
@@ -561,6 +562,6 @@ impl fmt::Display for DNSSECRData {
 
 impl From<DNSSECRData> for RData {
     fn from(rdata: DNSSECRData) -> Self {
-        Self::DNSSEC(rdata)
+        Self::DNSSEC(Box::new(rdata))
     }
 }

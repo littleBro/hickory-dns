@@ -474,6 +474,7 @@ impl Rollback {
 
 #[cfg(test)]
 mod tests {
+    use alloc::boxed::Box;
     #[cfg(any(feature = "std", feature = "no-std-rand"))]
     use core::str::FromStr;
 
@@ -600,28 +601,28 @@ mod tests {
         .add_answer(Record::from_rdata(
             Name::from_str("www.google.com.").unwrap(),
             0,
-            RData::SRV(SRV::new(
+            RData::SRV(Box::new(SRV::new(
                 0,
                 0,
                 0,
                 Name::from_str("www.compressme.com.").unwrap(),
-            )),
+            ))),
         ))
         .add_additional(Record::from_rdata(
             Name::from_str("www.google.com.").unwrap(),
             0,
-            RData::SRV(SRV::new(
+            RData::SRV(Box::new(SRV::new(
                 0,
                 0,
                 0,
                 Name::from_str("www.compressme.com.").unwrap(),
-            )),
+            ))),
         ))
         // name here should use compressed label from target in previous records
         .add_answer(Record::from_rdata(
             Name::from_str("www.compressme.com.").unwrap(),
             0,
-            RData::CNAME(CNAME(Name::from_str("www.foo.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(Name::from_str("www.foo.com.").unwrap()))),
         ));
 
         let bytes = msg.to_vec().unwrap();

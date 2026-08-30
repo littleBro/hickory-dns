@@ -7,6 +7,7 @@
 
 //! CDS type and related implementations
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -90,7 +91,7 @@ impl CDS {
 
 impl From<CDS> for RData {
     fn from(value: CDS) -> Self {
-        Self::DNSSEC(DNSSECRData::CDS(value))
+        Self::DNSSEC(Box::new(DNSSECRData::CDS(value)))
     }
 }
 
@@ -129,7 +130,10 @@ impl<'r> RecordDataDecodable<'r> for CDS {
 impl RecordData for CDS {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::DNSSEC(DNSSECRData::CDS(cds)) => Some(cds),
+            RData::DNSSEC(rdata) => match rdata.as_ref() {
+                DNSSECRData::CDS(cds) => Some(cds),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -139,7 +143,7 @@ impl RecordData for CDS {
     }
 
     fn into_rdata(self) -> RData {
-        RData::DNSSEC(DNSSECRData::CDS(self))
+        RData::DNSSEC(Box::new(DNSSECRData::CDS(self)))
     }
 }
 

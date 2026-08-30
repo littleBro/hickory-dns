@@ -7,6 +7,7 @@
 
 //! mail exchange, email, record
 
+use alloc::boxed::Box;
 use alloc::string::ToString;
 use core::fmt;
 
@@ -127,7 +128,7 @@ impl RecordData for MX {
     }
 
     fn into_rdata(self) -> RData {
-        RData::MX(self)
+        RData::MX(Box::new(self))
     }
 }
 

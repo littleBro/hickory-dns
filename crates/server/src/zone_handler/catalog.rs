@@ -1269,7 +1269,7 @@ mod tests {
         lookup.extend_authorities([Record::from_rdata(
             Name::from_str("example.com.").unwrap(),
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::from_str("ns.example.com.").unwrap(),
                 Name::from_str("admin.example.com.").unwrap(),
                 1,
@@ -1277,7 +1277,7 @@ mod tests {
                 1800,
                 604800,
                 86400,
-            )),
+            ))),
         )]);
 
         // Add additional record (glue)
@@ -1334,7 +1334,7 @@ mod tests {
         let sub = Name::from_str("sub.example.com.").unwrap();
         let ns_name = Name::from_str("ns.example.com.").unwrap();
 
-        let ns_record = Record::from_rdata(sub.clone(), 3600, RData::NS(NS(ns_name)));
+        let ns_record = Record::from_rdata(sub.clone(), 3600, RData::NS(Box::new(NS(ns_name))));
         let record_set = RecordSet::from(ns_record);
 
         let auth_lookup = AuthLookup::Records {

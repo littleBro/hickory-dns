@@ -510,7 +510,7 @@ mod test {
         let soa = Record::from_rdata(
             origin.clone(),
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::parse("sns.dns.icann.org.", None).unwrap(),
                 Name::parse("noc.dns.icann.org.", None).unwrap(),
                 2015082403,
@@ -518,7 +518,7 @@ mod test {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         );
 
         vec![
@@ -526,12 +526,16 @@ mod test {
             Record::from_rdata(
                 origin.clone(),
                 86400,
-                RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap())),
+                RData::NS(Box::new(NS(
+                    Name::parse("a.iana-servers.net.", None).unwrap()
+                ))),
             ),
             Record::from_rdata(
                 origin.clone(),
                 86400,
-                RData::NS(NS(Name::parse("b.iana-servers.net.", None).unwrap())),
+                RData::NS(Box::new(NS(
+                    Name::parse("b.iana-servers.net.", None).unwrap()
+                ))),
             ),
             Record::from_rdata(
                 origin.clone(),

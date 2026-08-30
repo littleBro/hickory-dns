@@ -420,7 +420,7 @@ impl DnsError {
                             .iter()
                             .filter_map(|record| {
                                 if let RData::NS(ns_data) = &ns.data {
-                                    if record.name == **ns_data && matches!(&record.data, RData::A(_) | RData::AAAA(_)) {
+                                    if record.name == ns_data.0 && matches!(&record.data, RData::A(_) | RData::AAAA(_)) {
                                         return Some(Record::to_owned(record));
                                     }
                                 }

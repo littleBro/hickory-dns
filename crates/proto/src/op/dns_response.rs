@@ -207,6 +207,8 @@ impl From<DnsResponse> for Message {
 
 #[cfg(all(test, any(feature = "std", feature = "no-std-rand")))]
 mod tests {
+    use alloc::boxed::Box;
+
     use crate::op::{Message, Query, ResponseCode};
     use crate::rr::RData;
     use crate::rr::rdata::{A, NS, SOA};
@@ -235,7 +237,7 @@ mod tests {
     }
 
     fn ns1_record() -> Record {
-        Record::from_rdata(xx(), 88640, RData::NS(NS(ns1())))
+        Record::from_rdata(xx(), 88640, RData::NS(Box::new(NS(ns1()))))
     }
 
     fn ns1_a() -> Record {
@@ -246,7 +248,7 @@ mod tests {
         Record::from_rdata(
             example(),
             88640,
-            RData::SOA(SOA::new(ns1(), hostmaster(), 1, 2, 3, 4, 5)),
+            RData::SOA(Box::new(SOA::new(ns1(), hostmaster(), 1, 2, 3, 4, 5))),
         )
     }
 

@@ -7,6 +7,7 @@
 
 //! NSEC record types
 
+use alloc::boxed::Box;
 use core::fmt;
 
 #[cfg(feature = "serde")]
@@ -177,7 +178,10 @@ impl<'r> RecordDataDecodable<'r> for NSEC {
 impl RecordData for NSEC {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::DNSSEC(DNSSECRData::NSEC(csync)) => Some(csync),
+            RData::DNSSEC(rdata) => match rdata.as_ref() {
+                DNSSECRData::NSEC(csync) => Some(csync),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -187,7 +191,7 @@ impl RecordData for NSEC {
     }
 
     fn into_rdata(self) -> RData {
-        RData::DNSSEC(DNSSECRData::NSEC(self))
+        RData::DNSSEC(Box::new(DNSSECRData::NSEC(self)))
     }
 }
 

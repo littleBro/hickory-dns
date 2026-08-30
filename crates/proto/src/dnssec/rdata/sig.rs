@@ -6,6 +6,7 @@
 // copied, modified, or distributed except according to those terms.
 
 //! signature record for signing queries, updates, and responses
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -293,7 +294,10 @@ impl<'r> RecordDataDecodable<'r> for SIG {
 impl RecordData for SIG {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::DNSSEC(DNSSECRData::SIG(csync)) => Some(csync),
+            RData::DNSSEC(rdata) => match rdata.as_ref() {
+                DNSSECRData::SIG(csync) => Some(csync),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -303,7 +307,7 @@ impl RecordData for SIG {
     }
 
     fn into_rdata(self) -> RData {
-        RData::DNSSEC(DNSSECRData::SIG(self))
+        RData::DNSSEC(Box::new(DNSSECRData::SIG(self)))
     }
 }
 

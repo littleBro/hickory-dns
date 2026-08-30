@@ -166,7 +166,7 @@ impl InnerInMemory {
 
         self.records.get(&rr_key).and_then(|rrset| {
             match &rrset.records_without_rrsigs().next()?.data {
-                RData::SOA(soa) => Some(soa),
+                RData::SOA(soa) => Some(soa.as_ref()),
                 _ => None,
             }
         })
@@ -983,7 +983,7 @@ mod tests {
         let soa = Record::from_rdata(
             origin.clone(),
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 ns_name.clone(),
                 Name::from_str("hostmaster.example.com.").unwrap(),
                 1,
@@ -991,12 +991,12 @@ mod tests {
                 3600,
                 3600,
                 3600,
-            )),
+            ))),
         );
         inner.upsert(soa, 1, DNSClass::IN);
 
         // Add NS delegation for sub.example.com
-        let ns = Record::from_rdata(sub.clone(), 3600, RData::NS(NS(ns_name.clone())));
+        let ns = Record::from_rdata(sub.clone(), 3600, RData::NS(Box::new(NS(ns_name.clone()))));
         inner.upsert(ns, 1, DNSClass::IN);
 
         // Lookup A record in sub.example.com (should return referral)

@@ -8,7 +8,6 @@
 //! TSIG for secret key authentication of transaction
 #![allow(clippy::use_self)]
 
-#[cfg(feature = "__dnssec")]
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::fmt;
@@ -437,7 +436,7 @@ impl<'r> RecordDataDecodable<'r> for TSIG {
 impl RecordData for TSIG {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::TSIG(csync) => Some(csync),
+            RData::TSIG(csync) => Some(csync.as_ref()),
             _ => None,
         }
     }
@@ -447,7 +446,7 @@ impl RecordData for TSIG {
     }
 
     fn into_rdata(self) -> RData {
-        RData::TSIG(self)
+        RData::TSIG(Box::new(self))
     }
 }
 

@@ -428,7 +428,7 @@ pub(crate) mod tests {
             Record::from_rdata(
                 Name::root(),
                 86400,
-                RData::NS(NS(Name::from_str("ns.example.").unwrap())),
+                RData::NS(Box::new(NS(Name::from_str("ns.example.").unwrap()))),
             ),
             Record::from_rdata(Name::root(), 86400, RData::AAAA(Ipv6Addr::LOCALHOST.into())),
         ]);

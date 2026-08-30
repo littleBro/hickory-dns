@@ -8,6 +8,7 @@
 //! public key record data for signing zone records
 #![allow(clippy::use_self)]
 
+use alloc::boxed::Box;
 use alloc::{sync::Arc, vec::Vec};
 use core::fmt;
 
@@ -369,7 +370,10 @@ impl<'r> RecordDataDecodable<'r> for KEY {
 impl RecordData for KEY {
     fn try_borrow(data: &RData) -> Option<&Self> {
         match data {
-            RData::DNSSEC(DNSSECRData::KEY(csync)) => Some(csync),
+            RData::DNSSEC(rdata) => match rdata.as_ref() {
+                DNSSECRData::KEY(csync) => Some(csync),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -379,7 +383,7 @@ impl RecordData for KEY {
     }
 
     fn into_rdata(self) -> RData {
-        RData::DNSSEC(DNSSECRData::KEY(self))
+        RData::DNSSEC(Box::new(DNSSECRData::KEY(self)))
     }
 }
 
@@ -462,7 +466,7 @@ impl fmt::Display for KEY {
 
 impl From<KEY> for RData {
     fn from(key: KEY) -> Self {
-        Self::DNSSEC(DNSSECRData::KEY(key))
+        Self::DNSSEC(Box::new(DNSSECRData::KEY(key)))
     }
 }
 
