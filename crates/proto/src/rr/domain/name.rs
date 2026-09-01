@@ -80,14 +80,30 @@ impl Name {
         Ok(())
     }
 
-    /// Extends the name with a run of labels already in wire form, validated by the caller.
-    fn extend_from_wire(&mut self, run: &[u8], labels: u8) -> Result<(), DecodeError> {
+    /// Extends the name with a run of labels already in wire form: `run` holds exactly `labels`
+    /// length-prefixed labels of 1 to 63 bytes each, the last of them starting at `last_start`.
+    /// The scan in `read_inner` established all three, and passing them on keeps that scan the
+    /// only walk over the run; debug builds walk it again, since a wrong count or offset would
+    /// break the invariants every later label walk relies on.
+    fn extend_from_wire(
+        &mut self,
+        run: &[u8],
+        labels: u8,
+        last_start: usize,
+    ) -> Result<(), DecodeError> {
+        debug_assert_eq!(
+            wire_run_shape(run),
+            Some((usize::from(labels), last_start)),
+            "run does not hold the labels the scan validated"
+        );
+
         let new_len = self.encoded_len() + run.len();
 
         if new_len > Self::MAX_LENGTH {
             return Err(DecodeError::DomainNameTooLong(new_len));
         };
 
+        self.last_start = (self.label_data.len() + last_start) as u8;
         self.label_data.extend_from_slice(run);
         self.label_count += labels;
 
@@ -1042,6 +1058,22 @@ fn label_at(data: &[u8], start: u8) -> &[u8] {
     &data[start + 1..start + 1 + len]
 }
 
+/// The label count and the start of the last label of a wire-form run, or `None` unless the
+/// run is exactly a sequence of labels of 1 to 63 bytes each.
+fn wire_run_shape(run: &[u8]) -> Option<(usize, usize)> {
+    let (mut pos, mut count, mut last) = (0, 0, 0);
+    while pos < run.len() {
+        let len = usize::from(run[pos]);
+        if len == 0 || len > 63 {
+            return None;
+        }
+        last = pos;
+        pos += 1 + len;
+        count += 1;
+    }
+    (pos == run.len()).then_some((count, last))
+}
+
 /// Compares two raw labels with the given comparison function, as in [`Label::cmp_with_f`].
 fn cmp_label<F: LabelCmp>(l: &[u8], r: &[u8]) -> Ordering {
     for (&a, &b) in l.iter().zip(r.iter()) {
@@ -1444,6 +1476,7 @@ fn read_inner(decoder: &mut BinDecoder<'_>, name: &mut Name) -> Result<(), Decod
 
                 let mut run_len = 0;
                 let mut run_labels = 0;
+                let mut run_last = 0;
                 while run_len < rel_max {
                     let Some(&length) = remaining.get(run_len) else {
                         break;
@@ -1457,6 +1490,7 @@ fn read_inner(decoder: &mut BinDecoder<'_>, name: &mut Name) -> Result<(), Decod
                     {
                         break;
                     }
+                    run_last = run_len;
                     run_len += step;
                     run_labels += 1;
                 }
@@ -1465,7 +1499,7 @@ fn read_inner(decoder: &mut BinDecoder<'_>, name: &mut Name) -> Result<(), Decod
                     let run = decoder
                         .read_slice(run_len)?
                         .unverified(/*validated during the scan above*/);
-                    name.extend_from_wire(run, run_labels)?;
+                    name.extend_from_wire(run, run_labels, run_last)?;
                 } else {
                     let label = decoder
                         .read_character_data()?
