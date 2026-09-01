@@ -7,7 +7,6 @@
 
 //! Update related operations for Messages
 
-use alloc::boxed::Box;
 use core::fmt::Debug;
 
 use super::{lower_query::LowerQuery, message_request::MessageRequest};
@@ -578,7 +577,7 @@ pub fn zone_transfer(zone_origin: Name, last_soa: Option<SOA>) -> Message {
 
     if let Some(soa) = last_soa {
         // for IXFR, old SOA is put as authority to indicate last known version
-        let record = Record::from_rdata(soa.mname.clone(), 0, RData::SOA(Box::new(soa)));
+        let record = Record::from_rdata(soa.mname.clone(), 0, RData::from(soa));
         message.add_authority(record);
     }
 
