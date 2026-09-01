@@ -41,6 +41,16 @@ use crate::{
 ///
 /// This is used to represent the generic Record as it is read off the wire. Allows for a Record to be abstractly referenced without knowing it's internal until runtime.
 ///
+/// # Size
+///
+/// An enum is as large as its largest variant, and every record collection pays that size per
+/// record, so `RData` is kept at 40 bytes on 64-bit targets: a variant whose payload is 56 bytes
+/// or more (`ANAME`, `CAA`, `CNAME`, `CSYNC`, `HTTPS`, `MX`, `NAPTR`, `NS`, `PTR`, `SOA`, `SRV`,
+/// `SVCB`, `TSIG` and the `DNSSEC` wrapper) holds it in a `Box`, and `test_rdata_is_small` fails
+/// when a new variant breaks the limit. Construct values through `From` (`RData::from(soa)`) or
+/// [`RecordData::into_rdata`] rather than by naming the variant, so that call sites do not depend
+/// on which variants are boxed.
+///
 /// [RFC 1035](https://tools.ietf.org/html/rfc1035), DOMAIN NAMES - IMPLEMENTATION AND SPECIFICATION, November 1987
 ///
 /// ```text
@@ -1347,6 +1357,24 @@ impl From<Ipv6Addr> for RData {
     }
 }
 
+/// `From` for the boxed variants, which box the payload themselves so that call sites do not
+/// depend on which variants are boxed; see the note on [`RData`].
+macro_rules! from_boxed_variant {
+    ($($variant:ident),* $(,)?) => {
+        $(
+            impl From<$variant> for RData {
+                fn from(rdata: $variant) -> Self {
+                    RData::$variant(Box::new(rdata))
+                }
+            }
+        )*
+    };
+}
+
+from_boxed_variant!(
+    ANAME, CAA, CNAME, CSYNC, HTTPS, MX, NAPTR, NS, PTR, SOA, SRV, SVCB, TSIG
+);
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::dbg_macro, clippy::print_stdout)]
@@ -1369,6 +1397,22 @@ mod tests {
             "RData is {} bytes: new large variants should be boxed",
             size_of::<RData>()
         );
+    }
+
+    #[test]
+    fn test_from_boxed_variants() {
+        // `From` boxes the payload exactly as `into_rdata` does, so both constructions are
+        // independent of the layout.
+        let name = Name::from_str("www.example.com.").unwrap();
+        assert_eq!(
+            RData::from(CNAME(name.clone())),
+            CNAME(name.clone()).into_rdata()
+        );
+        assert_eq!(
+            RData::from(MX::new(10, name.clone())),
+            MX::new(10, name.clone()).into_rdata()
+        );
+        assert!(matches!(RData::from(PTR(name)), RData::PTR(_)));
     }
 
     fn get_data() -> Vec<(RData, Vec<u8>)> {
