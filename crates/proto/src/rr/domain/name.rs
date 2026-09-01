@@ -36,6 +36,10 @@ pub struct Name {
     // The number of labels, at most 127 since a label takes at least two bytes of the 255
     // allowed for an encoded name.
     label_count: u8,
+    // Offset in `label_data` of the length byte of the last label, the one nearest the root.
+    // Comparisons start from that label, and locating it would otherwise mean walking every
+    // label before it. Meaningless while there are no labels.
+    last_start: u8,
     // Labels are stored in wire form: a length byte (at most 63 for valid names) followed by
     // the label's bytes, with the terminating root byte left implicit. Label boundaries are
     // derived by walking the buffer, so no separate table of offsets is needed, and the freed
@@ -67,6 +71,7 @@ impl Name {
             return Err(DecodeError::DomainNameTooLong(new_len));
         };
 
+        self.last_start = self.label_data.len() as u8;
         self.label_data.push(label.len() as u8);
         self.label_data.extend_from_slice(label);
         self.label_count += 1;
@@ -335,6 +340,7 @@ impl Name {
         Self {
             is_fqdn: self.is_fqdn,
             label_count: self.label_count,
+            last_start: self.last_start,
             label_data: new_label_data,
         }
     }
@@ -684,21 +690,65 @@ impl Name {
 
     /// Compare two Names, not considering FQDN-ness.
     fn cmp_labels<F: LabelCmp>(&self, other: &Self) -> Ordering {
-        // Compare from root to local: skip the leading labels of the longer name so that both
-        // sides hold equally many, compare the rest aligned at the root, and let the label
-        // count break a full tie.
+        // Labels compare from the root, so the last label of each buffer goes first. Its offset
+        // is kept in `last_start`, so a comparison decided there, the usual outcome for names
+        // under different zones, walks neither buffer.
+        if self.label_count == 0 || other.label_count == 0 {
+            return self.label_count.cmp(&other.label_count);
+        }
+        match cmp_label::<F>(self.last_label(), other.last_label()) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        // With the last labels equal, equal folded buffers before them mean equal label
+        // sequences: the wire form encodes the sequence injectively and folding leaves length
+        // bytes alone (see `PartialEq`). That is the usual outcome of a successful lookup.
+        let (l_start, r_start) = (usize::from(self.last_start), usize::from(other.last_start));
+        if self.label_count == other.label_count
+            && F::eq_bytes(&self.label_data[..l_start], &other.label_data[..r_start])
+        {
+            return Ordering::Equal;
+        }
+
+        // Otherwise walk both buffers once, leaf to root: skip the leaf-most labels the longer
+        // name has in excess, then compare label pairs. A pair that differs decides unless a
+        // pair nearer the root differs too, so the remainders are then checked for equality,
+        // one memcmp for names under one zone that differ in a leaf label, and only when they
+        // disagree does the walk go on to find the last differing pair. The label count breaks
+        // a full tie.
         let mut l = &self.label_data[..];
         for _ in other.label_count..self.label_count {
-            l = &l[1 + l[0] as usize..];
+            l = &l[1 + usize::from(l[0])..];
         }
         let mut r = &other.label_data[..];
         for _ in self.label_count..other.label_count {
-            r = &r[1 + r[0] as usize..];
+            r = &r[1 + usize::from(r[0])..];
         }
-        match cmp_labels_from_root::<F>(l, r) {
+        let mut result = Ordering::Equal;
+        while let (Some(&l_len), Some(&r_len)) = (l.first(), r.first()) {
+            let (l_end, r_end) = (1 + usize::from(l_len), 1 + usize::from(r_len));
+            match cmp_label::<F>(&l[1..l_end], &r[1..r_end]) {
+                Ordering::Equal => {}
+                ord => {
+                    result = ord;
+                    if F::eq_bytes(&l[l_end..], &r[r_end..]) {
+                        break;
+                    }
+                }
+            }
+            l = &l[l_end..];
+            r = &r[r_end..];
+        }
+        match result {
             Ordering::Equal => self.label_count.cmp(&other.label_count),
             ord => ord,
         }
+    }
+
+    /// The last label, the one nearest the root; the name must have at least one label.
+    fn last_label(&self) -> &[u8] {
+        label_at(&self.label_data, self.last_start)
     }
 
     /// Case sensitive comparison
@@ -708,7 +758,8 @@ impl Name {
 
     /// Compares the Names, in a case sensitive manner
     pub fn eq_case(&self, other: &Self) -> bool {
-        self.cmp_with_f::<CaseSensitive>(other) == Ordering::Equal
+        // Equal buffers are equal label sequences, as in `PartialEq` but without folding.
+        self.is_fqdn == other.is_fqdn && self.label_data == other.label_data
     }
 
     /// Non-FQDN-aware case-insensitive comparison
@@ -937,13 +988,16 @@ impl Name {
         label_data.push(b'*');
 
         // this is not using the Name::extend_name function as it should always be shorter than the original name, so length check is unnecessary
+        let mut last_start = 0;
         for label in self.iter().skip(1) {
+            last_start = label_data.len() as u8;
             label_data.push(label.len() as u8);
             label_data.extend_from_slice(label);
         }
         Self {
             label_data,
             label_count: self.label_count,
+            last_start,
             is_fqdn: self.is_fqdn,
         }
     }
@@ -971,23 +1025,6 @@ fn label_at(data: &[u8], start: u8) -> &[u8] {
     let start = usize::from(start);
     let len = usize::from(data[start]);
     &data[start + 1..start + 1 + len]
-}
-
-/// Compares wire-form buffers holding equally many labels, the label closest to the root
-/// being the most significant.
-///
-/// Walks to the root ends of the buffers by recursion and compares label pairs while
-/// unwinding, so the depth is bounded by the label count, at most 127 for a valid name.
-fn cmp_labels_from_root<F: LabelCmp>(l: &[u8], r: &[u8]) -> Ordering {
-    if l.is_empty() || r.is_empty() {
-        return Ordering::Equal;
-    }
-    let l_end = 1 + l[0] as usize;
-    let r_end = 1 + r[0] as usize;
-    match cmp_labels_from_root::<F>(&l[l_end..], &r[r_end..]) {
-        Ordering::Equal => cmp_label::<F>(&l[1..l_end], &r[1..r_end]),
-        ord => ord,
-    }
 }
 
 /// Compares two raw labels with the given comparison function, as in [`Label::cmp_with_f`].

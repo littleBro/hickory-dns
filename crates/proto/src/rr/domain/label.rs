@@ -301,6 +301,14 @@ impl Hash for Label {
 pub trait LabelCmp {
     /// this should mimic the cmp method from [`PartialOrd`]
     fn cmp_u8(l: u8, r: u8) -> Ordering;
+
+    /// Whether two byte strings are equal under this comparison
+    fn eq_bytes(l: &[u8], r: &[u8]) -> bool {
+        l.len() == r.len()
+            && l.iter()
+                .zip(r)
+                .all(|(&a, &b)| Self::cmp_u8(a, b) == Ordering::Equal)
+    }
 }
 
 /// For case sensitive comparisons
@@ -310,6 +318,10 @@ impl LabelCmp for CaseSensitive {
     fn cmp_u8(l: u8, r: u8) -> Ordering {
         l.cmp(&r)
     }
+
+    fn eq_bytes(l: &[u8], r: &[u8]) -> bool {
+        l == r
+    }
 }
 
 /// For case insensitive comparisons
@@ -318,6 +330,10 @@ pub(super) struct CaseInsensitive;
 impl LabelCmp for CaseInsensitive {
     fn cmp_u8(l: u8, r: u8) -> Ordering {
         l.to_ascii_lowercase().cmp(&r.to_ascii_lowercase())
+    }
+
+    fn eq_bytes(l: &[u8], r: &[u8]) -> bool {
+        l.eq_ignore_ascii_case(r)
     }
 }
 
