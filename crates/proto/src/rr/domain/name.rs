@@ -1942,6 +1942,113 @@ mod tests {
         assert!(Name::read(&mut d).is_err());
     }
 
+    /// Decodes a name at `offset` of `buffer`, returning the outcome and the decoder position.
+    fn read_at(buffer: &[u8], offset: usize) -> (Result<Name, DecodeError>, usize) {
+        let mut decoder = BinDecoder::new(buffer);
+        decoder.read_slice(offset).unwrap();
+        let name = Name::read(&mut decoder);
+        (name, decoder.index())
+    }
+
+    #[test]
+    fn test_read_run_then_root() {
+        // Plain labels up to the root byte are validated in one scan and appended in one piece.
+        let buffer = b"\x03www\x07example\x03com\x00";
+        let (name, index) = read_at(buffer, 0);
+        assert_eq!(name.unwrap(), Name::from_ascii("www.example.com.").unwrap());
+        assert_eq!(index, buffer.len());
+    }
+
+    #[test]
+    fn test_read_run_then_pointer() {
+        // The scan stops at the pointer, and the pointed-to labels form a run of their own,
+        // ended by the root byte inside the region.
+        let buffer = b"\x03com\x00\x03www\x07example\xC0\x00";
+        let (name, index) = read_at(buffer, 5);
+        assert_eq!(name.unwrap(), Name::from_ascii("www.example.com.").unwrap());
+        assert_eq!(index, buffer.len());
+
+        let buffer = b"\x03foo\x03bar\x00\x03baz\xC0\x00";
+        let (name, index) = read_at(buffer, 9);
+        assert_eq!(name.unwrap(), Name::from_ascii("baz.foo.bar.").unwrap());
+        assert_eq!(index, buffer.len());
+    }
+
+    #[test]
+    fn test_read_run_stops_at_pointed_region_bound() {
+        // A pointed-to region ends where the pointing name starts. Here it holds two labels and
+        // no root byte, so the run fills it exactly, and the state machine then reports the
+        // overlap the way it did label by label.
+        let buffer = b"\x03foo\x03bar\x03baz\xC0\x00";
+        let (name, _) = read_at(buffer, 8);
+        let error = name.unwrap_err();
+        assert!(
+            matches!(
+                error,
+                DecodeError::LabelOverlapsWithOther { label: 0, other: 8 }
+            ),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn test_read_run_stops_at_name_length_budget() {
+        // Three 63-byte labels fit in a name; a fourth of 62 bytes would make it 256 bytes.
+        // The scan leaves that label to the single-label path, which reports the overflow with
+        // the label's length, as before. One byte less fits exactly, through the run.
+        let mut prefix = Vec::new();
+        for _ in 0..3 {
+            prefix.push(63);
+            prefix.extend_from_slice(&[b'a'; 63]);
+        }
+
+        let mut too_long = prefix.clone();
+        too_long.push(62);
+        too_long.extend_from_slice(&[b'b'; 62]);
+        too_long.push(0);
+        let (name, _) = read_at(&too_long, 0);
+        let error = name.unwrap_err();
+        assert!(
+            matches!(error, DecodeError::DomainNameTooLong(62)),
+            "{error:?}"
+        );
+
+        let mut exact = prefix;
+        exact.push(61);
+        exact.extend_from_slice(&[b'b'; 61]);
+        exact.push(0);
+        let (name, index) = read_at(&exact, 0);
+        let name = name.unwrap();
+        assert_eq!(name.num_labels(), 4);
+        assert_eq!(name.iter().next_back().unwrap(), &[b'b'; 61]);
+        assert_eq!(index, exact.len());
+    }
+
+    #[test]
+    fn test_read_label_past_buffer_end_after_run() {
+        // The scan stops at a label that would run past the buffer; the single-label path then
+        // fails to read it.
+        let buffer = b"\x03foo\x05ba";
+        let (name, _) = read_at(buffer, 0);
+        let error = name.unwrap_err();
+        assert!(matches!(error, DecodeError::InsufficientBytes), "{error:?}");
+    }
+
+    #[test]
+    fn test_read_run_then_unrecognized_label_code() {
+        // The scan stops at a byte with a reserved high-bit pattern (01 or 10), which the state
+        // machine then rejects, naming the byte.
+        for code in [0x40u8, 0x80, 0xBF] {
+            let buffer = [b"\x03foo".as_slice(), &[code, b'x', b'y']].concat();
+            let (name, _) = read_at(&buffer, 0);
+            let error = name.unwrap_err();
+            assert!(
+                matches!(error, DecodeError::UnrecognizedLabelCode(c) if c == code),
+                "{error:?}"
+            );
+        }
+    }
+
     #[test]
     fn test_base_name() {
         let zone = Name::from_str("example.com.").unwrap();
