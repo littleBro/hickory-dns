@@ -1927,6 +1927,47 @@ mod tests {
     }
 
     #[test]
+    fn test_label_length_limit_from_text() {
+        // The label being parsed accumulates in an inline buffer of 64 bytes. The longest valid
+        // label, 63 bytes, must pass through it unchanged, and a 64-byte label must be rejected
+        // with the byte count, through both text entry points.
+        let label_63 = "a".repeat(63);
+        let label_64 = "a".repeat(64);
+        let parsers: [fn(&str) -> ProtoResult<Name>; 2] =
+            [|s| Name::from_ascii(s), |s| Name::from_utf8(s)];
+
+        for parse in parsers {
+            let name = parse(&format!("{label_63}.example.")).unwrap();
+            assert_eq!(name.num_labels(), 2);
+            assert_eq!(name.iter().next().unwrap(), label_63.as_bytes());
+
+            let error = parse(&format!("{label_64}.example.")).unwrap_err();
+            assert!(
+                matches!(
+                    error,
+                    ProtoError::Decode(DecodeError::LabelBytesTooLong(64))
+                ),
+                "{error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_octal_escape_multibyte_char() {
+        // An octal escape denotes a Unicode scalar value, not a raw byte: `\351` is U+00E9,
+        // which takes two bytes in the label buffer, so `caf\351` is the label `café`.
+        // `from_utf8` encodes it with IDNA and `from_ascii` rejects it, as for the literal
+        // character.
+        let escaped = Name::from_utf8("caf\\351.example.").unwrap();
+        assert_eq!(escaped, Name::from_utf8("café.example.").unwrap());
+        assert_eq!(escaped.to_ascii(), "xn--caf-dma.example.");
+        assert_eq!(escaped.iter().next().unwrap(), b"xn--caf-dma");
+
+        assert!(Name::from_ascii("caf\\351.example.").is_err());
+        assert!(Name::from_ascii("café.example.").is_err());
+    }
+
+    #[test]
     fn test_into_name() {
         let name = Name::from_utf8("www.example.com").unwrap();
         assert_eq!(Name::from_utf8("www.example.com").unwrap(), name);
