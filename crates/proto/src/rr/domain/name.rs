@@ -1469,8 +1469,11 @@ fn read_inner(decoder: &mut BinDecoder<'_>, name: &mut Name) -> Result<(), Decod
                 // the name length budget, or a label running past the buffer; whatever stopped
                 // it is left to the surrounding state machine, which handles it as before.
                 let remaining = decoder.remaining_slice();
+                // The check at the top of the loop guarantees `decoder.index() < max_idx` here;
+                // `saturating_sub` keeps this arm total on its own. A zero budget just routes
+                // to the single-label path below, which reports the error as before.
                 let rel_max = match ptr_max_idx {
-                    Some(max_idx) => max_idx - decoder.index(),
+                    Some(max_idx) => max_idx.saturating_sub(decoder.index()),
                     None => remaining.len(),
                 };
 
