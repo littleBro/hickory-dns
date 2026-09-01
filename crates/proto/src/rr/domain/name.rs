@@ -43,8 +43,9 @@ pub struct Name {
     // Labels are stored in wire form: a length byte (at most 63 for valid names) followed by
     // the label's bytes, with the terminating root byte left implicit. Label boundaries are
     // derived by walking the buffer, so no separate table of offsets is needed, and the freed
-    // space goes toward a larger inline buffer.
-    label_data: TinyVec<[u8; 40]>,
+    // space goes toward a larger inline buffer. 44 bytes cost the same as 40: `TinyVec` rounds
+    // the inline variant up to the alignment of `Vec`, 48 bytes either way.
+    label_data: TinyVec<[u8; 44]>,
 }
 
 impl Name {
