@@ -154,6 +154,8 @@ impl Name {
             name: self,
             pos: 0,
             remaining: usize::from(self.label_count),
+            starts: None,
+            back: 0,
         }
     }
 
@@ -947,6 +949,30 @@ impl Name {
     }
 }
 
+/// Records in `starts` where each label of a wire-form buffer begins and returns the label
+/// count. This one pass is what locating labels from the root end costs without a stored
+/// offset table; a valid name has at most 127 labels, so the array always suffices.
+fn label_starts(data: &[u8], starts: &mut [u8; 127]) -> usize {
+    let mut count = 0;
+    let mut pos = 0;
+    while pos < data.len() {
+        let Some(start) = starts.get_mut(count) else {
+            break;
+        };
+        *start = pos as u8;
+        pos += 1 + usize::from(data[pos]);
+        count += 1;
+    }
+    count
+}
+
+/// The label whose length byte sits at `start` in a wire-form buffer.
+fn label_at(data: &[u8], start: u8) -> &[u8] {
+    let start = usize::from(start);
+    let len = usize::from(data[start]);
+    &data[start + 1..start + 1 + len]
+}
+
 /// Compares wire-form buffers holding equally many labels, the label closest to the root
 /// being the most significant.
 ///
@@ -1015,9 +1041,21 @@ impl LabelEnc for LabelEncUtf8 {
 /// An iterator over labels in a name
 pub struct LabelIter<'a> {
     name: &'a Name,
+    // Offset of the next label from the front.
     pos: usize,
+    // Labels not yet yielded from either end.
     remaining: usize,
+    // Where every label of the name starts, filled by the first `next_back` with more than
+    // `WALK_LIMIT` labels left, and the index in it just past the last label not yet yielded
+    // from the back. Forward iteration touches neither, so a forward-only walk pays nothing.
+    starts: Option<[u8; 127]>,
+    back: usize,
 }
+
+/// With at most this many labels left, `next_back` walks to the last one rather than using
+/// the table of label starts: the walk is at most three steps, cheaper than building the
+/// table, and typical names never have more labels than this.
+const WALK_LIMIT: usize = 4;
 
 impl<'a> Iterator for LabelIter<'a> {
     type Item = &'a [u8];
@@ -1047,15 +1085,28 @@ impl DoubleEndedIterator for LabelIter<'_> {
             return None;
         }
 
-        // Walk forward to the start of the last label not yet consumed from either end.
-        let mut pos = self.pos;
-        for _ in 1..self.remaining {
-            pos += 1 + self.name.label_data[pos] as usize;
+        // With few labels left, walking to the last one is cheapest, table or no table.
+        if self.remaining <= WALK_LIMIT {
+            let mut pos = self.pos;
+            for _ in 1..self.remaining {
+                pos += 1 + usize::from(self.name.label_data[pos]);
+            }
+            let len = usize::from(self.name.label_data[pos]);
+            self.remaining -= 1;
+            return Some(&self.name.label_data[pos + 1..pos + 1 + len]);
         }
 
-        let len = self.name.label_data[pos] as usize;
+        // Reaching the last label means walking past every other one, so record where each
+        // starts on the way: this call costs one pass and every later one is O(1).
+        if self.starts.is_none() {
+            let starts = self.starts.insert([0u8; 127]);
+            self.back = label_starts(&self.name.label_data, starts);
+        }
+        let starts = self.starts.as_ref()?;
+
+        self.back -= 1;
         self.remaining -= 1;
-        Some(&self.name.label_data[pos + 1..pos + 1 + len])
+        Some(label_at(&self.name.label_data, starts[self.back]))
     }
 }
 
