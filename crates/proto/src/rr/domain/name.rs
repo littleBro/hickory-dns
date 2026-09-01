@@ -1649,6 +1649,13 @@ mod tests {
     use crate::error::ProtoError;
     use crate::serialize::binary::bin_tests::{test_emit_data_set, test_read_data_set};
 
+    /// A 34-label name, the shape of every IPv6 reverse-zone owner name.
+    const IP6_ARPA: &str =
+        "b.a.9.8.7.6.5.4.3.2.1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.";
+    /// The same with a different root-most label.
+    const IP6_ARPB: &str =
+        "b.a.9.8.7.6.5.4.3.2.1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpb.";
+
     fn get_data() -> Vec<(Name, Vec<u8>)> {
         vec![
             (Name::from_str(".").unwrap(), vec![0]), // base case, only the root
@@ -2350,6 +2357,132 @@ mod tests {
         assert_eq!(iter.next().unwrap(), b"example");
         assert!(iter.next_back().is_none());
         assert!(iter.next().is_none());
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn test_name_is_small() {
+        assert!(
+            size_of::<Name>() <= 56,
+            "Name is {} bytes: the inline buffer or the bookkeeping grew",
+            size_of::<Name>()
+        );
+    }
+
+    #[test]
+    fn test_folding_leaves_length_bytes_alone() {
+        // `to_lowercase`, `PartialEq` and `Hash` fold the whole wire-form buffer, length bytes
+        // included, which is correct because a length byte is at most 63, below every ASCII
+        // letter. A label of 63 capitals is the boundary case: its length byte is the largest
+        // possible while every other byte of the label does change.
+        let upper = "A".repeat(63);
+        let lower = upper.to_ascii_lowercase();
+        let name = Name::from_ascii(format!("{upper}.Example.COM.")).unwrap();
+        let folded = name.to_lowercase();
+        let expected = Name::from_ascii(format!("{lower}.example.com.")).unwrap();
+
+        let expected_labels: [&[u8]; 3] = [lower.as_bytes(), b"example", b"com"];
+        assert_eq!(folded.iter().collect::<Vec<_>>(), expected_labels);
+        assert!(folded.eq_case(&expected));
+        assert!(!folded.eq_case(&name));
+        assert_eq!(folded, name);
+        assert_eq!(folded.to_bytes().unwrap(), expected.to_bytes().unwrap());
+
+        #[cfg(feature = "std")]
+        {
+            let mut original = DefaultHasher::new();
+            name.hash(&mut original);
+            let mut lowered = DefaultHasher::new();
+            folded.hash(&mut lowered);
+            assert_eq!(original.finish(), lowered.finish());
+        }
+    }
+
+    #[test]
+    fn test_cmp_with_unequal_label_counts() {
+        // Labels compare from the root. When every label of the shorter name matches, the
+        // shorter name is the lesser; a difference at any matched pair decides regardless of
+        // the counts; case variants compare equal through the folded-buffer fast path.
+        let cases = [
+            ("example.com.", "www.example.com.", Ordering::Less),
+            ("com.", "a.b.c.d.e.f.g.com.", Ordering::Less),
+            ("z.com.", "a.b.com.", Ordering::Greater),
+            ("z.example.com.", "a.b.example.com.", Ordering::Greater),
+            ("www.example.com.", "www.example.org.", Ordering::Less),
+            ("mail.example.com.", "www.example.com.", Ordering::Less),
+            ("WWW.example.com.", "www.EXAMPLE.com.", Ordering::Equal),
+            (".", "com.", Ordering::Less),
+            (IP6_ARPA, IP6_ARPB, Ordering::Less),
+        ];
+        for (l, r, expected) in cases {
+            let (l, r) = (Name::from_ascii(l).unwrap(), Name::from_ascii(r).unwrap());
+            assert_eq!(l.cmp(&r), expected, "{l} vs {r}");
+            assert_eq!(r.cmp(&l), expected.reverse(), "{r} vs {l}");
+        }
+
+        // Case-sensitive: capitals sort first at the first pair that differs.
+        let l = Name::from_ascii("www.EXAMPLE.com.").unwrap();
+        let r = Name::from_ascii("www.example.com.").unwrap();
+        assert_eq!(l.cmp_case(&r), Ordering::Less);
+        assert!(!l.eq_case(&r));
+        assert!(l.eq_case(&l.clone()));
+
+        // The longest possible names: 127 one-byte labels.
+        let max = Name::from_ascii(format!("{}.", ["a"; 127].join("."))).unwrap();
+        let max_b = Name::from_ascii(format!("{}.b.", ["a"; 126].join("."))).unwrap();
+        assert_eq!(max.cmp(&max_b), Ordering::Less);
+        assert_eq!(max.cmp(&Name::from_ascii("a.").unwrap()), Ordering::Greater);
+        assert_eq!(max.cmp(&max.clone()), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_mixed_direction_iteration() {
+        // `next_back` fills an offset table on its first call and both ends work from it after
+        // that; every interleaving must yield each label exactly once, in order from its end.
+        let max_labels = format!("{}.", ["a"; 127].join("."));
+        for text in [
+            ".",
+            "com.",
+            "www.example.com.",
+            IP6_ARPA,
+            max_labels.as_str(),
+        ] {
+            let name = Name::from_ascii(text).unwrap();
+            let labels: Vec<&[u8]> = name.iter().collect();
+            let count = labels.len();
+
+            let reversed: Vec<&[u8]> = name.iter().rev().collect();
+            assert_eq!(reversed, labels.iter().rev().copied().collect::<Vec<_>>());
+
+            // Alternate between the two ends, starting from either.
+            for start_at_back in [false, true] {
+                let mut iter = name.iter();
+                let (mut front, mut back) = (0, count);
+                let mut take_back = start_at_back;
+                while front < back {
+                    if take_back {
+                        back -= 1;
+                        assert_eq!(iter.next_back(), Some(labels[back]));
+                    } else {
+                        assert_eq!(iter.next(), Some(labels[front]));
+                        front += 1;
+                    }
+                    assert_eq!(iter.len(), back - front);
+                    take_back = !take_back;
+                }
+                assert_eq!(iter.next(), None);
+                assert_eq!(iter.next_back(), None);
+            }
+
+            // Two from the front, then everything from the back.
+            let mut iter = name.iter();
+            let skipped = iter.by_ref().take(2).count();
+            let rest: Vec<&[u8]> = iter.rev().collect();
+            assert_eq!(
+                rest,
+                labels[skipped..].iter().rev().copied().collect::<Vec<_>>()
+            );
+        }
     }
 
     #[test]
