@@ -1,0 +1,22 @@
+     Running tests/review_bench.rs (/tmp/claude-0/-home-user-hickory-dns/d1215842-b9cb-5d92-b4b3-ea3f7ab793ef/scratchpad/target-rel-series/release/deps/review_bench-49ef2f38ceae4feb)
+
+running 1 test
+test bench_cmp_by_shape ... BENCH cmp equal, case-variant, 3 labels: 29.0 ns
+BENCH cmp differs at root-most label, 3 labels: 15.7 ns
+BENCH cmp differs at leaf label, 3 labels: 26.9 ns
+BENCH cmp equal, case-variant, 5 labels: 37.3 ns
+BENCH cmp differs at root-most label, 5 labels: 21.3 ns
+BENCH cmp differs at leaf label, 5 labels: 36.8 ns
+BENCH cmp equal, case-variant, 8 labels: 56.2 ns
+BENCH cmp differs at root-most label, 8 labels: 39.4 ns
+BENCH cmp differs at leaf label, 8 labels: 54.7 ns
+BENCH cmp equal, case-variant, 34 labels ip6.arpa: 372.8 ns
+BENCH cmp differs at root-most label, 34 labels ip6.arpa: 264.8 ns
+BENCH cmp differs at leaf label, 34 labels ip6.arpa: 369.6 ns
+BENCH BTreeMap<LowerName> lookup, 20k entries (per lookup): 691903.9 ns
+BENCH HashMap<LowerName> lookup, 20k entries (per lookup): 90515.9 ns
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 11.06s
+
+EXIT=0

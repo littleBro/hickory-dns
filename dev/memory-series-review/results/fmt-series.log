@@ -1,0 +1,16 @@
+Diff in /tmp/claude-0/-home-user-hickory-dns/d1215842-b9cb-5d92-b4b3-ea3f7ab793ef/scratchpad/series/crates/proto/benches/message.rs:104:
+                 let record = Record::from_rdata(
+                     Name::parse(&format!("l{i}.l{j}.l{k}.example."), None).unwrap(),
+                     86400,
+[31m-                    RData::PTR(Box::new(PTR(
+[m[31m-                        Name::parse(&format!("l{i}.l{j}.l{k}.test."), None).unwrap(),
+[m[31m-                    ))),
+[m[32m+                    RData::PTR(Box::new(PTR(Name::parse(
+[m[32m+                        &format!("l{i}.l{j}.l{k}.test."),
+[m[32m+                        None,
+[m[32m+                    )
+[m[32m+                    .unwrap()))),
+[m                 );
+                 message.add_answer(record);
+             }
+EXIT=1

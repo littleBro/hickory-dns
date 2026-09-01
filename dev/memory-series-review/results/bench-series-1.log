@@ -1,0 +1,33 @@
+     Running tests/review_bench.rs (/tmp/claude-0/-home-user-hickory-dns/d1215842-b9cb-5d92-b4b3-ea3f7ab793ef/scratchpad/target-rel-series/release/deps/review_bench-49ef2f38ceae4feb)
+
+running 3 tests
+test bench_message_clone ... BENCH clone A answer (4 A): 100.5 ns
+BENCH clone CNAME answer (CNAME + A): 84.2 ns
+BENCH clone NXDOMAIN (SOA in authority): 77.3 ns
+BENCH clone referral (4 NS + 4 A): 191.9 ns
+ok
+test bench_message_parse_emit ... BENCH parse A answer (97 bytes): 371.3 ns
+BENCH emit A answer: 625.6 ns
+BENCH parse CNAME answer (100 bytes): 327.6 ns
+BENCH emit CNAME answer: 809.8 ns
+BENCH parse NXDOMAIN (85 bytes): 299.3 ns
+BENCH emit NXDOMAIN: 548.7 ns
+BENCH parse referral (169 bytes): 841.4 ns
+BENCH emit referral: 1427.1 ns
+BENCH parse 40-CNAME response (1243 bytes): 7322.8 ns
+ok
+test bench_name_ops ... BENCH Name::from_ascii (6 typical names): 3242.0 ns
+BENCH Name eq case-variant (6 names): 266.0 ns
+BENCH Name cmp case-variant (6 names): 603.7 ns
+BENCH Name hash (6 names): 153.3 ns
+BENCH Name to_lowercase (6 names): 177.7 ns
+BENCH iter().rev() full walk (6 names): 670.9 ns
+BENCH parse_arpa_name ip6.arpa (34 labels): 1076.6 ns
+BENCH iter().rev() full walk, 127 labels: 13012.6 ns
+BENCH iter() full walk, 127 labels: 263.3 ns
+BENCH Name clone (6 names): 39.5 ns
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.06s
+
+EXIT=0

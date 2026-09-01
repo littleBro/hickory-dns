@@ -1,0 +1,10 @@
+warning: unused import: `alloc::boxed::Box`
+  --> crates/proto/src/op/update_message.rs:10:5
+   |
+10 | use alloc::boxed::Box;
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `hickory-proto` (lib) generated 1 warning (run `cargo fix --lib -p hickory-proto` to apply 1 suggestion)
+EXIT=0

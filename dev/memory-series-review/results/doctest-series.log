@@ -1,0 +1,102 @@
+   Doc-tests hickory_dns
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hickory_integration
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hickory_net
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests hickory_proto
+
+running 48 tests
+test crates/proto/src/dnssec/proof.rs - dnssec::proof::Proven<T>::require_as_ref (line 168) ... ok
+test crates/proto/src/dnssec/proof.rs - dnssec::proof::Proven<T>::require (line 187) ... ok
+test crates/proto/src/op/op_code.rs - op::op_code::OpCode (line 92) ... ok
+test crates/proto/src/op/op_code.rs - op::op_code::u8 (line 66) ... ok
+test crates/proto/src/rr/dns_class.rs - rr::dns_class::&'staticstr (line 100) ... ok
+test crates/proto/src/op/response_code.rs - op::response_code::ResponseCode (line 240) ... ok
+test crates/proto/src/op/response_code.rs - op::response_code::u16 (line 197) ... ok
+test crates/proto/src/rr/dns_class.rs - rr::dns_class::DNSClass (line 122) ... ok
+test crates/proto/src/rr/dns_class.rs - rr::dns_class::u16 (line 143) ... ok
+test crates/proto/src/rr/dns_class.rs - rr::dns_class::DNSClass::from_str (line 51) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::append_domain (line 309) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::append_label (line 178) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::append_name (line 274) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::eq_ignore_root (line 738) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::base_name (line 358) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::eq_ignore_root_case (line 775) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::from_ascii (line 536) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::from_labels (line 223) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::from_str_relaxed (line 590) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::from_utf8 (line 568) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::into_wildcard (line 937) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::is_fqdn (line 141) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::is_localhost (line 895) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::is_root (line 122) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::is_wildcard (line 916) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::len (line 472) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::num_labels (line 441) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::parse (line 518) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::prepend_label (line 195) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::to_lowercase (line 329) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::zone_of (line 407) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::trim_to (line 379) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::base_name (line 87) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::is_root (line 47) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::is_fqdn (line 66) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::num_labels (line 122) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::zone_of (line 104) ... ok
+test crates/proto/src/rr/record_type.rs - rr::record_type::&'staticstr (line 335) ... ok
+test crates/proto/src/rr/rdata/txt.rs - rr::rdata::txt::TXT::fmt (line 148) ... ok
+test crates/proto/src/rr/record_type.rs - rr::record_type::RecordType::from (line 261) ... ok
+test crates/proto/src/rr/record_type.rs - rr::record_type::u16 (line 392) ... ok
+test crates/proto/src/rr/record_type.rs - rr::record_type::RecordType::from_str (line 207) ... ok
+test crates/proto/src/serialize/binary/decoder.rs - serialize::binary::decoder::BinDecoder<'a>::len (line 62) ... ok
+test crates/proto/src/serialize/binary/restrict.rs - serialize::binary::restrict::Restrict<T>::map (line 61) ... ok
+test crates/proto/src/serialize/binary/encoder.rs - serialize::binary::encoder::BinEncoder<'a>::emit_character_data (line 262) ... ok
+test crates/proto/src/serialize/binary/restrict.rs - serialize::binary::restrict::Restrict<T>::verify (line 16) ... ok
+test crates/proto/src/serialize/binary/restrict.rs - serialize::binary::restrict::Restrict<T>::verify_unwrap (line 37) ... ok
+test crates/proto/src/serialize/txt/mod.rs - serialize::txt::parse_ttl (line 51) ... ok
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.85s
+
+   Doc-tests hickory_resolver
+
+running 4 tests
+test crates/resolver/src/lib.rs - (line 154) - compile ... ok
+test crates/resolver/src/lib.rs - (line 96) - compile ... ok
+test crates/resolver/src/lib.rs - (line 38) - compile ... ok
+test crates/resolver/src/lib.rs - (line 58) ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s
+
+   Doc-tests hickory_server
+
+running 1 test
+test crates/server/src/zone_handler/message_response.rs - zone_handler::message_response::MessageResponseBuilder<'q>::from_message_request (line 162) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+   Doc-tests hickory_util
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests test_support
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
