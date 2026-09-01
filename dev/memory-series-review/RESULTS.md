@@ -92,3 +92,34 @@ where the check is representation-independent.
   LabelOverlapsWithOther 13k, DomainNameTooLong 470; 135k successes.
 - `TinyVec<[u8; N]>` sizes with tinyvec 1.11.0: 24 → 32, 32 → 40,
   40 → 48, 44 → 48, 46 → 56, 48 → 56, 64 → 72 bytes.
+
+## Repository benches (nightly harness)
+
+`RUSTFLAGS="--cfg=nightly" cargo +nightly bench -p hickory-proto --bench name
+--bench message`, nightly 1.100.0 (2026-08-31), with the benches added by the
+`name-shape-benches` branch applied to both trees. ns/iter, pass 1 / pass 2.
+Raw output in `results/nightly-bench-*.log`.
+
+| bench | `main` | series |
+|---|---:|---:|
+| `bench_parse_message` | 311 / 331 | 232 / 231 |
+| `bench_parse_real_message` | 1149 / 1213 | 794 / 777 |
+| `bench_parse_message_cname` | 455 / 451 | 324 / 316 |
+| `bench_parse_message_referral` | 1171 / 1131 | 835 / 813 |
+| `bench_emit_message` | 209 / 218 | 203 / 202 |
+| `bench_emit_message_cve_2024_8508` | 374,765 / 370,066 | 320,343 / 341,504 |
+| `bench_clone_message_cname` | 107 / 106 | 85 / 84 |
+| `bench_clone_message_nxdomain` | 90 / 89 | 79 / 80 |
+| `bench_clone_message_referral` | 292 / 281 | 203 / 199 |
+| `name_cmp_short` / `medium` / `long` | 11.6 / 31.5 / 56.1 | 9.6 / 26.1 / 51.5 |
+| `name_cmp_long_not_eq` | 15.0 / 14.9 | 19.3 / 19.7 |
+| `name_cmp_long_not_eq_root` | 9.2 / 9.1 | 17.7 / 17.9 |
+| `name_cmp_ip6_arpa` | 199 / 195 | 353 / 343 |
+| `name_cmp_ip6_arpa_not_eq_root` | 12.7 / 12.8 | 240 / 238 |
+| `name_eq_medium` | 29.2 / 27.9 | 3.8 / 3.9 |
+| `name_hash_medium` | 40.8 / 40.4 | 18.8 / 18.6 |
+| `name_to_lower_long` | 21.9 / 21.8 | 9.5 / 9.8 |
+| `name_iter_rev_medium` | 7.0 / 7.0 | 7.3 / 7.3 |
+| `name_iter_rev_ip6_arpa` | 57.5 / 55.1 | 557 / 565 |
+| `name_iter_rev_max_labels` | 211 / 208 | 12,539 / 12,641 |
+| `name_parse_arpa_name_ip6` | 358 / 360 | 1,091 / 1,040 |
