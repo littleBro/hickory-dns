@@ -308,6 +308,16 @@ impl<'de> Deserialize<'de> for LowerName {
     }
 }
 
+#[cfg(target_pointer_width = "64")]
+#[test]
+fn test_lower_name_is_small() {
+    assert!(
+        size_of::<LowerName>() <= 56,
+        "LowerName is {} bytes: it should cost no more than Name",
+        size_of::<LowerName>()
+    );
+}
+
 #[test]
 fn test_name_lowername_roundtrip() {
     // Test that roundtrip conversions from Name <-> LowerName <-> Name are
