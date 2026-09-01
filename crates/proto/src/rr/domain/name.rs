@@ -604,7 +604,7 @@ impl Name {
             match state {
                 ParseState::Label => match ch {
                     '.' => {
-                        name = name.append_label(E::to_label(label_str(&label))?)?;
+                        name = name.append_label(E::to_label(label_str(&label)?)?)?;
                         label.clear();
                     }
                     '\\' => state = ParseState::Escape1,
@@ -655,7 +655,7 @@ impl Name {
         }
 
         if !label.is_empty() {
-            name = name.append_label(E::to_label(label_str(&label))?)?;
+            name = name.append_label(E::to_label(label_str(&label)?)?)?;
         }
 
         // Check if the last character processed was an unescaped `.`
@@ -1140,8 +1140,9 @@ impl Hash for Name {
 }
 
 /// The label buffer is built from `char::encode_utf8` output only, so it is always valid UTF-8.
-fn label_str(label: &[u8]) -> &str {
-    core::str::from_utf8(label).expect("label buffer is built from encoded chars")
+/// The check is still made rather than assumed: library code must not panic.
+fn label_str(label: &[u8]) -> ProtoResult<&str> {
+    core::str::from_utf8(label).map_err(|_| ProtoError::from("label buffer is not valid UTF-8"))
 }
 
 enum ParseState {
