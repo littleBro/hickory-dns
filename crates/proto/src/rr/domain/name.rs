@@ -1061,17 +1061,12 @@ pub struct LabelIter<'a> {
     pos: usize,
     // Labels not yet yielded from either end.
     remaining: usize,
-    // Where every label of the name starts, filled by the first `next_back` with more than
-    // `WALK_LIMIT` labels left, and the index in it just past the last label not yet yielded
-    // from the back. Forward iteration touches neither, so a forward-only walk pays nothing.
+    // Where every label of the name starts, filled by the first `next_back`, and the index in
+    // it just past the last label not yet yielded from the back. Forward iteration touches
+    // neither, so a forward-only walk pays nothing for them.
     starts: Option<[u8; 127]>,
     back: usize,
 }
-
-/// With at most this many labels left, `next_back` walks to the last one rather than using
-/// the table of label starts: the walk is at most three steps, cheaper than building the
-/// table, and typical names never have more labels than this.
-const WALK_LIMIT: usize = 4;
 
 impl<'a> Iterator for LabelIter<'a> {
     type Item = &'a [u8];
@@ -1099,17 +1094,6 @@ impl DoubleEndedIterator for LabelIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.remaining == 0 {
             return None;
-        }
-
-        // With few labels left, walking to the last one is cheapest, table or no table.
-        if self.remaining <= WALK_LIMIT {
-            let mut pos = self.pos;
-            for _ in 1..self.remaining {
-                pos += 1 + usize::from(self.name.label_data[pos]);
-            }
-            let len = usize::from(self.name.label_data[pos]);
-            self.remaining -= 1;
-            return Some(&self.name.label_data[pos + 1..pos + 1 + len]);
         }
 
         // Reaching the last label means walking past every other one, so record where each
