@@ -36,10 +36,6 @@ pub struct Name {
     // The number of labels, at most 127 since a label takes at least two bytes of the 255
     // allowed for an encoded name.
     label_count: u8,
-    // Offset in `label_data` of the length byte of the last label, the one nearest the root.
-    // Comparisons start from that label, and locating it would otherwise mean walking every
-    // label before it. Meaningless while there are no labels.
-    last_start: u8,
     // Labels are stored in wire form: a length byte (at most 63 for valid names) followed by
     // the label's bytes, with the terminating root byte left implicit. Label boundaries are
     // derived by walking the buffer, so no separate table of offsets is needed, and the freed
@@ -72,7 +68,6 @@ impl Name {
             return Err(DecodeError::DomainNameTooLong(new_len));
         };
 
-        self.last_start = self.label_data.len() as u8;
         self.label_data.push(label.len() as u8);
         self.label_data.extend_from_slice(label);
         self.label_count += 1;
@@ -341,7 +336,6 @@ impl Name {
         Self {
             is_fqdn: self.is_fqdn,
             label_count: self.label_count,
-            last_start: self.last_start,
             label_data: new_label_data,
         }
     }
@@ -691,23 +685,15 @@ impl Name {
 
     /// Compare two Names, not considering FQDN-ness.
     fn cmp_labels<F: LabelCmp>(&self, other: &Self) -> Ordering {
-        // Labels compare from the root, so the last label of each buffer goes first. Its offset
-        // is kept in `last_start`, so a comparison decided there, the usual outcome for names
-        // under different zones, walks neither buffer.
+        // Labels compare from the root, the last label of each buffer being the most
+        // significant. Equal folded buffers mean equal label sequences, since the wire form
+        // encodes the sequence injectively and folding leaves length bytes alone (see
+        // `PartialEq`); that is the usual outcome of a successful lookup, settled with one
+        // memcmp.
         if self.label_count == 0 || other.label_count == 0 {
             return self.label_count.cmp(&other.label_count);
         }
-        match cmp_label::<F>(self.last_label(), other.last_label()) {
-            Ordering::Equal => {}
-            ord => return ord,
-        }
-
-        // With the last labels equal, equal folded buffers before them mean equal label
-        // sequences: the wire form encodes the sequence injectively and folding leaves length
-        // bytes alone (see `PartialEq`). That is the usual outcome of a successful lookup.
-        let (l_start, r_start) = (usize::from(self.last_start), usize::from(other.last_start));
-        if self.label_count == other.label_count
-            && F::eq_bytes(&self.label_data[..l_start], &other.label_data[..r_start])
+        if self.label_count == other.label_count && F::eq_bytes(&self.label_data, &other.label_data)
         {
             return Ordering::Equal;
         }
@@ -745,11 +731,6 @@ impl Name {
             Ordering::Equal => self.label_count.cmp(&other.label_count),
             ord => ord,
         }
-    }
-
-    /// The last label, the one nearest the root; the name must have at least one label.
-    fn last_label(&self) -> &[u8] {
-        label_at(&self.label_data, self.last_start)
     }
 
     /// Case sensitive comparison
@@ -989,16 +970,13 @@ impl Name {
         label_data.push(b'*');
 
         // this is not using the Name::extend_name function as it should always be shorter than the original name, so length check is unnecessary
-        let mut last_start = 0;
         for label in self.iter().skip(1) {
-            last_start = label_data.len() as u8;
             label_data.push(label.len() as u8);
             label_data.extend_from_slice(label);
         }
         Self {
             label_data,
             label_count: self.label_count,
-            last_start,
             is_fqdn: self.is_fqdn,
         }
     }
