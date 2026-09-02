@@ -585,7 +585,10 @@ impl Name {
 
     fn from_encoded_str<E: LabelEnc>(local: &str, origin: Option<&Self>) -> ProtoResult<Self> {
         let mut name = Self::new();
-        let mut label = String::new();
+        // Labels are at most 63 bytes, so the buffer stays inline for every valid label and
+        // parsing does not allocate.
+        let mut label = TinyVec::<[u8; 64]>::new();
+        let mut ch_buf = [0u8; 4];
 
         let mut state = ParseState::Label;
 
@@ -601,11 +604,13 @@ impl Name {
             match state {
                 ParseState::Label => match ch {
                     '.' => {
-                        name = name.append_label(E::to_label(&label)?)?;
+                        name = name.append_label(E::to_label(label_str(&label)?)?)?;
                         label.clear();
                     }
                     '\\' => state = ParseState::Escape1,
-                    ch if !ch.is_control() && !ch.is_whitespace() => label.push(ch),
+                    ch if !ch.is_control() && !ch.is_whitespace() => {
+                        label.extend_from_slice(ch.encode_utf8(&mut ch_buf).as_bytes())
+                    }
                     _ => return Err(format!("unrecognized char: {ch}").into()),
                 },
                 ParseState::Escape1 => {
@@ -616,7 +621,7 @@ impl Name {
                         );
                     } else {
                         // it's a single escaped char
-                        label.push(ch);
+                        label.extend_from_slice(ch.encode_utf8(&mut ch_buf).as_bytes());
                         state = ParseState::Label;
                     }
                 }
@@ -640,7 +645,7 @@ impl Name {
                                 .ok_or_else(|| ProtoError::from(format!("illegal char: {ch}")))?;
                         let new: char = char::from_u32(val)
                             .ok_or_else(|| ProtoError::from(format!("illegal char: {ch}")))?;
-                        label.push(new);
+                        label.extend_from_slice(new.encode_utf8(&mut ch_buf).as_bytes());
                         state = ParseState::Label;
                     } else {
                         return Err(format!("unrecognized char: {ch}").into());
@@ -650,7 +655,7 @@ impl Name {
         }
 
         if !label.is_empty() {
-            name = name.append_label(E::to_label(&label)?)?;
+            name = name.append_label(E::to_label(label_str(&label)?)?)?;
         }
 
         // Check if the last character processed was an unescaped `.`
@@ -1132,6 +1137,12 @@ impl Hash for Name {
             .flatten()
             .for_each(|&b| state.write_u8(b.to_ascii_lowercase()));
     }
+}
+
+/// The label buffer is built from `char::encode_utf8` output only, so it is always valid UTF-8.
+/// The check is still made rather than assumed: library code must not panic.
+fn label_str(label: &[u8]) -> ProtoResult<&str> {
+    core::str::from_utf8(label).map_err(|_| ProtoError::from("label buffer is not valid UTF-8"))
 }
 
 enum ParseState {
@@ -1913,6 +1924,47 @@ mod tests {
 
         assert!(!bytes_name.eq_case(&utf8_name));
         assert!(lower_name.eq_case(&utf8_name));
+    }
+
+    #[test]
+    fn test_label_length_limit_from_text() {
+        // The label being parsed accumulates in an inline buffer of 64 bytes. The longest valid
+        // label, 63 bytes, must pass through it unchanged, and a 64-byte label must be rejected
+        // with the byte count, through both text entry points.
+        let label_63 = "a".repeat(63);
+        let label_64 = "a".repeat(64);
+        let parsers: [fn(&str) -> ProtoResult<Name>; 2] =
+            [|s| Name::from_ascii(s), |s| Name::from_utf8(s)];
+
+        for parse in parsers {
+            let name = parse(&format!("{label_63}.example.")).unwrap();
+            assert_eq!(name.num_labels(), 2);
+            assert_eq!(name.iter().next().unwrap(), label_63.as_bytes());
+
+            let error = parse(&format!("{label_64}.example.")).unwrap_err();
+            assert!(
+                matches!(
+                    error,
+                    ProtoError::Decode(DecodeError::LabelBytesTooLong(64))
+                ),
+                "{error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_octal_escape_multibyte_char() {
+        // An octal escape denotes a Unicode scalar value, not a raw byte: `\351` is U+00E9,
+        // which takes two bytes in the label buffer, so `caf\351` is the label `café`.
+        // `from_utf8` encodes it with IDNA and `from_ascii` rejects it, as for the literal
+        // character.
+        let escaped = Name::from_utf8("caf\\351.example.").unwrap();
+        assert_eq!(escaped, Name::from_utf8("café.example.").unwrap());
+        assert_eq!(escaped.to_ascii(), "xn--caf-dma.example.");
+        assert_eq!(escaped.iter().next().unwrap(), b"xn--caf-dma");
+
+        assert!(Name::from_ascii("caf\\351.example.").is_err());
+        assert!(Name::from_ascii("café.example.").is_err());
     }
 
     #[test]
