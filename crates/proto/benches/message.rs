@@ -4,10 +4,10 @@
 extern crate test;
 
 use hickory_proto::op::{
-    Header, HeaderCounts, Message, MessageType, Metadata, OpCode, ResponseCode,
+    Header, HeaderCounts, Message, MessageType, Metadata, OpCode, Query, ResponseCode,
 };
-use hickory_proto::rr::rdata::PTR;
-use hickory_proto::rr::{Name, RData, Record, RecordType};
+use hickory_proto::rr::rdata::{A, CNAME, NS, PTR, SOA};
+use hickory_proto::rr::{Name, RData, Record, RecordData, RecordType};
 use hickory_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
 
 use test::Bencher;
@@ -167,5 +167,95 @@ fn bench_parse_real_message(b: &mut Bencher) {
     b.iter(|| {
         let mut decoder = BinDecoder::new(&bytes[..]);
         assert!(Message::read(&mut decoder).is_ok());
+    })
+}
+
+fn name(text: &str) -> Name {
+    Name::from_ascii(text).unwrap()
+}
+
+/// An A lookup answered through a CNAME, the most common shape of a positive answer.
+fn cname_response() -> Message {
+    let mut message = Message::response(10, OpCode::Query);
+    message.add_query(Query::new(name("www.example.com."), RecordType::A));
+    message.add_answer(Record::from_rdata(
+        name("www.example.com."),
+        300,
+        CNAME(name("www.example.com.cdn.example.net.")).into_rdata(),
+    ));
+    message.add_answer(Record::from_rdata(
+        name("www.example.com.cdn.example.net."),
+        60,
+        A::new(192, 0, 2, 1).into_rdata(),
+    ));
+    message
+}
+
+/// A referral: four NS records in the authority section with their glue.
+fn referral_response() -> Message {
+    let mut message = Message::response(10, OpCode::Query);
+    message.add_query(Query::new(name("www.example.com."), RecordType::A));
+    for i in 0..4 {
+        let ns = name(&format!("ns{i}.example.com."));
+        message.add_authority(Record::from_rdata(
+            name("example.com."),
+            172_800,
+            NS(ns.clone()).into_rdata(),
+        ));
+        message.add_additional(Record::from_rdata(
+            ns,
+            172_800,
+            A::new(192, 0, 2, i).into_rdata(),
+        ));
+    }
+    message
+}
+
+/// A negative answer: an SOA in the authority section.
+fn nxdomain_response() -> Message {
+    let mut message = Message::response(10, OpCode::Query);
+    message.metadata.response_code = ResponseCode::NXDomain;
+    message.add_query(Query::new(name("nope.example.com."), RecordType::A));
+    message.add_authority(Record::from_rdata(
+        name("example.com."),
+        3600,
+        SOA::new(
+            name("ns1.example.com."),
+            name("hostmaster.example.com."),
+            2_024_010_101,
+            7200,
+            3600,
+            1_209_600,
+            3600,
+        )
+        .into_rdata(),
+    ));
+    message
+}
+
+#[bench]
+fn bench_clone_message_cname(b: &mut Bencher) {
+    let message = cname_response();
+    b.iter(|| message.clone())
+}
+
+#[bench]
+fn bench_clone_message_referral(b: &mut Bencher) {
+    let message = referral_response();
+    b.iter(|| message.clone())
+}
+
+#[bench]
+fn bench_clone_message_nxdomain(b: &mut Bencher) {
+    let message = nxdomain_response();
+    b.iter(|| message.clone())
+}
+
+#[bench]
+fn bench_parse_message_referral(b: &mut Bencher) {
+    let bytes = referral_response().to_vec().unwrap();
+    b.iter(|| {
+        let mut decoder = BinDecoder::new(&bytes);
+        Message::read(&mut decoder)
     })
 }
