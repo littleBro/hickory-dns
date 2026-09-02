@@ -33,10 +33,15 @@ use crate::serialize::txt::ParseError;
 #[derive(Clone, Default, Eq)]
 pub struct Name {
     is_fqdn: bool,
-    label_data: TinyVec<[u8; 32]>,
-    // This 24 is chosen because TinyVec accommodates an inline buffer up to 24 bytes without
-    // increasing its stack footprint
-    label_ends: TinyVec<[u8; 24]>,
+    // The number of labels, at most 127 since a label takes at least two bytes of the 255
+    // allowed for an encoded name.
+    label_count: u8,
+    // Labels are stored in wire form: a length byte (at most 63 for valid names) followed by
+    // the label's bytes, with the terminating root byte left implicit. Label boundaries are
+    // derived by walking the buffer, so no separate table of offsets is needed, and the freed
+    // space goes toward a larger inline buffer. 44 bytes cost the same as 40: `TinyVec` rounds
+    // the inline variant up to the alignment of `Vec`, 48 bytes either way.
+    label_data: TinyVec<[u8; 44]>,
 }
 
 impl Name {
@@ -63,8 +68,9 @@ impl Name {
             return Err(DecodeError::DomainNameTooLong(new_len));
         };
 
+        self.label_data.push(label.len() as u8);
         self.label_data.extend_from_slice(label);
-        self.label_ends.push(self.label_data.len() as u8);
+        self.label_count += 1;
 
         Ok(())
     }
@@ -76,6 +82,8 @@ impl Name {
         // `rand` crate operates. One RNG call should be enough for most queries.
         let mut rand_bits: u32 = 0;
 
+        // Length prefix bytes are at most 63, and thus not ASCII alphabetic, so they are
+        // never flipped.
         for (i, b) in self.label_data.iter_mut().enumerate() {
             // Generate fresh random bits on the zeroth and then every 32nd iteration.
             if i % 32 == 0 {
@@ -105,7 +113,7 @@ impl Name {
     /// assert_eq!(&root.to_string(), ".");
     /// ```
     pub fn is_root(&self) -> bool {
-        self.label_ends.is_empty() && self.is_fqdn()
+        self.label_data.is_empty() && self.is_fqdn()
     }
 
     /// Returns true if the name is a fully qualified domain name.
@@ -145,8 +153,10 @@ impl Name {
     pub fn iter(&self) -> LabelIter<'_> {
         LabelIter {
             name: self,
-            start: 0,
-            end: self.label_ends.len() as u8,
+            pos: 0,
+            remaining: usize::from(self.label_count),
+            starts: None,
+            back: 0,
         }
     }
 
@@ -316,6 +326,8 @@ impl Name {
     /// assert!(example_com.to_lowercase().eq_case(&Name::from_str("example.com").unwrap()));
     /// ```
     pub fn to_lowercase(&self) -> Self {
+        // Length prefix bytes are at most 63, below any ASCII letter, so they pass through
+        // `to_ascii_lowercase` unchanged.
         let new_label_data = self
             .label_data
             .iter()
@@ -323,8 +335,8 @@ impl Name {
             .collect();
         Self {
             is_fqdn: self.is_fqdn,
+            label_count: self.label_count,
             label_data: new_label_data,
-            label_ends: self.label_ends.clone(),
         }
     }
 
@@ -342,7 +354,7 @@ impl Name {
     /// assert_eq!(Name::root().base_name(), Name::root());
     /// ```
     pub fn base_name(&self) -> Self {
-        let length = self.label_ends.len();
+        let length = usize::from(self.label_count);
         if length > 0 {
             return self.trim_to(length - 1);
         }
@@ -364,10 +376,11 @@ impl Name {
     /// assert_eq!(example_com.trim_to(3), Name::from_str("example.com.").unwrap());
     /// ```
     pub fn trim_to(&self, num_labels: usize) -> Self {
-        if num_labels > self.label_ends.len() {
+        let length = usize::from(self.label_count);
+        if num_labels > length {
             self.clone()
         } else {
-            Self::from_labels(self.iter().skip(self.label_ends.len() - num_labels)).unwrap()
+            Self::from_labels(self.iter().skip(length - num_labels)).unwrap()
         }
     }
 
@@ -396,8 +409,8 @@ impl Name {
     }
 
     fn zone_of_with(&self, name: &Self, label_eq: fn(&[u8], &[u8]) -> bool) -> bool {
-        let self_len = self.label_ends.len();
-        let name_len = name.label_ends.len();
+        let self_len = usize::from(self.label_count);
+        let name_len = usize::from(name.label_count);
         match (self_len, name_len) {
             (0, _) => return true,
             (_, 0) => return false,
@@ -406,8 +419,7 @@ impl Name {
         }
 
         self.iter()
-            .rev()
-            .zip(name.iter().rev())
+            .zip(name.iter().skip(name_len - self_len))
             .all(|(a, b)| label_eq(a, b))
     }
 
@@ -431,7 +443,7 @@ impl Name {
     pub fn num_labels(&self) -> u8 {
         // it is illegal to have more than 256 labels.
 
-        let num = self.label_ends.len() as u8;
+        let num = self.label_count;
 
         self.iter()
             .next()
@@ -455,12 +467,11 @@ impl Name {
     /// assert_eq!(Name::root().len(), 1);
     /// ```
     pub fn len(&self) -> usize {
-        let dots = if !self.label_ends.is_empty() {
-            self.label_ends.len()
-        } else {
+        if self.label_data.is_empty() {
             1
-        };
-        dots + self.label_data.len()
+        } else {
+            self.label_data.len()
+        }
     }
 
     /// Returns the encoded length of this name, ignoring compression.
@@ -468,7 +479,7 @@ impl Name {
     /// The `is_fqdn` flag is ignored, and the root label at the end is assumed to always be
     /// present, since it terminates the name in the DNS message format.
     fn encoded_len(&self) -> usize {
-        self.label_ends.len() + self.label_data.len() + 1
+        self.label_data.len() + 1
     }
 
     /// Returns whether the length of the labels, in bytes is 0. In practice, since '.' counts as
@@ -679,20 +690,52 @@ impl Name {
 
     /// Compare two Names, not considering FQDN-ness.
     fn cmp_labels<F: LabelCmp>(&self, other: &Self) -> Ordering {
-        // Compare from root to local (reversed)
-        for (l, r) in self.iter().rev().zip(other.iter().rev()) {
-            for (&a, &b) in l.iter().zip(r.iter()) {
-                match F::cmp_u8(a, b) {
-                    Ordering::Equal => {}
-                    ord => return ord,
+        // Labels compare from the root, the last label of each buffer being the most
+        // significant. Equal folded buffers mean equal label sequences, since the wire form
+        // encodes the sequence injectively and folding leaves length bytes alone (see
+        // `PartialEq`); that is the usual outcome of a successful lookup, settled with one
+        // memcmp.
+        if self.label_count == 0 || other.label_count == 0 {
+            return self.label_count.cmp(&other.label_count);
+        }
+        if self.label_count == other.label_count && F::eq_bytes(&self.label_data, &other.label_data)
+        {
+            return Ordering::Equal;
+        }
+
+        // Otherwise walk both buffers once, leaf to root: skip the leaf-most labels the longer
+        // name has in excess, then compare label pairs. A pair that differs decides unless a
+        // pair nearer the root differs too, so the remainders are then checked for equality,
+        // one memcmp for names under one zone that differ in a leaf label, and only when they
+        // disagree does the walk go on to find the last differing pair. The label count breaks
+        // a full tie.
+        let mut l = &self.label_data[..];
+        for _ in other.label_count..self.label_count {
+            l = &l[1 + usize::from(l[0])..];
+        }
+        let mut r = &other.label_data[..];
+        for _ in self.label_count..other.label_count {
+            r = &r[1 + usize::from(r[0])..];
+        }
+        let mut result = Ordering::Equal;
+        while let (Some(&l_len), Some(&r_len)) = (l.first(), r.first()) {
+            let (l_end, r_end) = (1 + usize::from(l_len), 1 + usize::from(r_len));
+            match cmp_label::<F>(&l[1..l_end], &r[1..r_end]) {
+                Ordering::Equal => {}
+                ord => {
+                    result = ord;
+                    if F::eq_bytes(&l[l_end..], &r[r_end..]) {
+                        break;
+                    }
                 }
             }
-            match l.len().cmp(&r.len()) {
-                Ordering::Equal => {}
-                ord => return ord,
-            }
+            l = &l[l_end..];
+            r = &r[r_end..];
         }
-        self.label_ends.len().cmp(&other.label_ends.len())
+        match result {
+            Ordering::Equal => self.label_count.cmp(&other.label_count),
+            ord => ord,
+        }
     }
 
     /// Case sensitive comparison
@@ -702,7 +745,8 @@ impl Name {
 
     /// Compares the Names, in a case sensitive manner
     pub fn eq_case(&self, other: &Self) -> bool {
-        self.cmp_with_f::<CaseSensitive>(other) == Ordering::Equal
+        // Equal buffers are equal label sequences, as in `PartialEq` but without folding.
+        self.is_fqdn == other.is_fqdn && self.label_data == other.label_data
     }
 
     /// Non-FQDN-aware case-insensitive comparison
@@ -923,25 +967,59 @@ impl Name {
     /// assert_eq!(name, Name::root());
     /// ```
     pub fn into_wildcard(self) -> Self {
-        if self.label_ends.is_empty() {
+        if self.label_data.is_empty() {
             return Self::root();
         }
         let mut label_data = TinyVec::new();
+        label_data.push(1);
         label_data.push(b'*');
-        let mut label_ends = TinyVec::new();
-        label_ends.push(1);
 
         // this is not using the Name::extend_name function as it should always be shorter than the original name, so length check is unnecessary
         for label in self.iter().skip(1) {
+            label_data.push(label.len() as u8);
             label_data.extend_from_slice(label);
-            label_ends.push(label_data.len() as u8);
         }
         Self {
             label_data,
-            label_ends,
+            label_count: self.label_count,
             is_fqdn: self.is_fqdn,
         }
     }
+}
+
+/// Records in `starts` where each label of a wire-form buffer begins and returns the label
+/// count. This one pass is what locating labels from the root end costs without a stored
+/// offset table; a valid name has at most 127 labels, so the array always suffices.
+fn label_starts(data: &[u8], starts: &mut [u8; 127]) -> usize {
+    let mut count = 0;
+    let mut pos = 0;
+    while pos < data.len() {
+        let Some(start) = starts.get_mut(count) else {
+            break;
+        };
+        *start = pos as u8;
+        pos += 1 + usize::from(data[pos]);
+        count += 1;
+    }
+    count
+}
+
+/// The label whose length byte sits at `start` in a wire-form buffer.
+fn label_at(data: &[u8], start: u8) -> &[u8] {
+    let start = usize::from(start);
+    let len = usize::from(data[start]);
+    &data[start + 1..start + 1 + len]
+}
+
+/// Compares two raw labels with the given comparison function, as in [`Label::cmp_with_f`].
+fn cmp_label<F: LabelCmp>(l: &[u8], r: &[u8]) -> Ordering {
+    for (&a, &b) in l.iter().zip(r.iter()) {
+        match F::cmp_u8(a, b) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+    }
+    l.len().cmp(&r.len())
 }
 
 impl fmt::Debug for Name {
@@ -984,30 +1062,34 @@ impl LabelEnc for LabelEncUtf8 {
 /// An iterator over labels in a name
 pub struct LabelIter<'a> {
     name: &'a Name,
-    start: u8,
-    end: u8,
+    // Offset of the next label from the front.
+    pos: usize,
+    // Labels not yet yielded from either end.
+    remaining: usize,
+    // Where every label of the name starts, filled by the first `next_back`, and the index in
+    // it just past the last label not yet yielded from the back. Forward iteration touches
+    // neither, so a forward-only walk pays nothing for them.
+    starts: Option<[u8; 127]>,
+    back: usize,
 }
 
 impl<'a> Iterator for LabelIter<'a> {
     type Item = &'a [u8];
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.start >= self.end {
+        if self.remaining == 0 {
             return None;
         }
 
-        let end = *self.name.label_ends.get(self.start as usize)?;
-        let start = match self.start {
-            0 => 0,
-            _ => self.name.label_ends[(self.start - 1) as usize],
-        };
-        self.start += 1;
-        Some(&self.name.label_data[start as usize..end as usize])
+        let len = self.name.label_data[self.pos] as usize;
+        let label = &self.name.label_data[self.pos + 1..self.pos + 1 + len];
+        self.pos += 1 + len;
+        self.remaining -= 1;
+        Some(label)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.end.saturating_sub(self.start) as usize;
-        (len, Some(len))
+        (self.remaining, Some(self.remaining))
     }
 }
 
@@ -1015,19 +1097,21 @@ impl ExactSizeIterator for LabelIter<'_> {}
 
 impl DoubleEndedIterator for LabelIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.end <= self.start {
+        if self.remaining == 0 {
             return None;
         }
 
-        self.end -= 1;
+        // Reaching the last label means walking past every other one, so record where each
+        // starts on the way: this call costs one pass and every later one is O(1).
+        if self.starts.is_none() {
+            let starts = self.starts.insert([0u8; 127]);
+            self.back = label_starts(&self.name.label_data, starts);
+        }
+        let starts = self.starts.as_ref()?;
 
-        let end = *self.name.label_ends.get(self.end as usize)?;
-        let start = match self.end {
-            0 => 0,
-            _ => self.name.label_ends[(self.end - 1) as usize],
-        };
-
-        Some(&self.name.label_data[start as usize..end as usize])
+        self.back -= 1;
+        self.remaining -= 1;
+        Some(label_at(&self.name.label_data, starts[self.back]))
     }
 }
 
@@ -1122,20 +1206,26 @@ impl From<Ipv6Addr> for Name {
 
 impl PartialEq<Self> for Name {
     fn eq(&self, other: &Self) -> bool {
-        match self.is_fqdn == other.is_fqdn {
-            true => self.cmp_with_f::<CaseInsensitive>(other) == Ordering::Equal,
-            false => false,
-        }
+        // The wire form encodes the label sequence injectively, and case folding leaves the
+        // length prefix bytes unchanged, so comparing the folded buffers is equivalent to
+        // comparing the folded label sequences (as `cmp_with_f::<CaseInsensitive>` does).
+        self.is_fqdn == other.is_fqdn && self.label_data.eq_ignore_ascii_case(&other.label_data)
     }
 }
 
 impl Hash for Name {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.is_fqdn.hash(state);
-        // Note: case-insensitive like `PartialEq`
-        self.iter()
-            .flatten()
-            .for_each(|&b| state.write_u8(b.to_ascii_lowercase()));
+        // Note: case-insensitive like `PartialEq`. The whole wire-form buffer is folded and
+        // hashed: length prefix bytes are at most 63, below any ASCII letter, so they pass
+        // through the fold unchanged, and equal names have equal folded buffers.
+        let mut folded = [0u8; 64];
+        for chunk in self.label_data.chunks(folded.len()) {
+            for (dst, src) in folded.iter_mut().zip(chunk) {
+                *dst = src.to_ascii_lowercase();
+            }
+            state.write(&folded[..chunk.len()]);
+        }
     }
 }
 
@@ -1170,7 +1260,7 @@ impl BinEncodable for Name {
         let labels = name_ref.iter();
 
         // start index of each label
-        let mut labels_written = Vec::with_capacity(name_ref.label_ends.len());
+        let mut labels_written = Vec::with_capacity(usize::from(name_ref.label_count));
         // we're going to write out each label, tracking the indexes of the start to each label
         //   then we'll look to see if we can remove them and recapture the capacity in the buffer...
         for label in labels {
@@ -1531,6 +1621,13 @@ mod tests {
     use super::*;
     use crate::error::ProtoError;
     use crate::serialize::binary::bin_tests::{test_emit_data_set, test_read_data_set};
+
+    /// A 34-label name, the shape of every IPv6 reverse-zone owner name.
+    const IP6_ARPA: &str =
+        "b.a.9.8.7.6.5.4.3.2.1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.";
+    /// The same with a different root-most label.
+    const IP6_ARPB: &str =
+        "b.a.9.8.7.6.5.4.3.2.1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpb.";
 
     fn get_data() -> Vec<(Name, Vec<u8>)> {
         vec![
@@ -2274,6 +2371,132 @@ mod tests {
         assert_eq!(iter.next().unwrap(), b"example");
         assert!(iter.next_back().is_none());
         assert!(iter.next().is_none());
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn test_name_is_small() {
+        assert!(
+            size_of::<Name>() <= 56,
+            "Name is {} bytes: the inline buffer or the bookkeeping grew",
+            size_of::<Name>()
+        );
+    }
+
+    #[test]
+    fn test_folding_leaves_length_bytes_alone() {
+        // `to_lowercase`, `PartialEq` and `Hash` fold the whole wire-form buffer, length bytes
+        // included, which is correct because a length byte is at most 63, below every ASCII
+        // letter. A label of 63 capitals is the boundary case: its length byte is the largest
+        // possible while every other byte of the label does change.
+        let upper = "A".repeat(63);
+        let lower = upper.to_ascii_lowercase();
+        let name = Name::from_ascii(format!("{upper}.Example.COM.")).unwrap();
+        let folded = name.to_lowercase();
+        let expected = Name::from_ascii(format!("{lower}.example.com.")).unwrap();
+
+        let expected_labels: [&[u8]; 3] = [lower.as_bytes(), b"example", b"com"];
+        assert_eq!(folded.iter().collect::<Vec<_>>(), expected_labels);
+        assert!(folded.eq_case(&expected));
+        assert!(!folded.eq_case(&name));
+        assert_eq!(folded, name);
+        assert_eq!(folded.to_bytes().unwrap(), expected.to_bytes().unwrap());
+
+        #[cfg(feature = "std")]
+        {
+            let mut original = DefaultHasher::new();
+            name.hash(&mut original);
+            let mut lowered = DefaultHasher::new();
+            folded.hash(&mut lowered);
+            assert_eq!(original.finish(), lowered.finish());
+        }
+    }
+
+    #[test]
+    fn test_cmp_with_unequal_label_counts() {
+        // Labels compare from the root. When every label of the shorter name matches, the
+        // shorter name is the lesser; a difference at any matched pair decides regardless of
+        // the counts; case variants compare equal through the folded-buffer fast path.
+        let cases = [
+            ("example.com.", "www.example.com.", Ordering::Less),
+            ("com.", "a.b.c.d.e.f.g.com.", Ordering::Less),
+            ("z.com.", "a.b.com.", Ordering::Greater),
+            ("z.example.com.", "a.b.example.com.", Ordering::Greater),
+            ("www.example.com.", "www.example.org.", Ordering::Less),
+            ("mail.example.com.", "www.example.com.", Ordering::Less),
+            ("WWW.example.com.", "www.EXAMPLE.com.", Ordering::Equal),
+            (".", "com.", Ordering::Less),
+            (IP6_ARPA, IP6_ARPB, Ordering::Less),
+        ];
+        for (l, r, expected) in cases {
+            let (l, r) = (Name::from_ascii(l).unwrap(), Name::from_ascii(r).unwrap());
+            assert_eq!(l.cmp(&r), expected, "{l} vs {r}");
+            assert_eq!(r.cmp(&l), expected.reverse(), "{r} vs {l}");
+        }
+
+        // Case-sensitive: capitals sort first at the first pair that differs.
+        let l = Name::from_ascii("www.EXAMPLE.com.").unwrap();
+        let r = Name::from_ascii("www.example.com.").unwrap();
+        assert_eq!(l.cmp_case(&r), Ordering::Less);
+        assert!(!l.eq_case(&r));
+        assert!(l.eq_case(&l.clone()));
+
+        // The longest possible names: 127 one-byte labels.
+        let max = Name::from_ascii(format!("{}.", ["a"; 127].join("."))).unwrap();
+        let max_b = Name::from_ascii(format!("{}.b.", ["a"; 126].join("."))).unwrap();
+        assert_eq!(max.cmp(&max_b), Ordering::Less);
+        assert_eq!(max.cmp(&Name::from_ascii("a.").unwrap()), Ordering::Greater);
+        assert_eq!(max.cmp(&max.clone()), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_mixed_direction_iteration() {
+        // `next_back` fills an offset table on its first call and both ends work from it after
+        // that; every interleaving must yield each label exactly once, in order from its end.
+        let max_labels = format!("{}.", ["a"; 127].join("."));
+        for text in [
+            ".",
+            "com.",
+            "www.example.com.",
+            IP6_ARPA,
+            max_labels.as_str(),
+        ] {
+            let name = Name::from_ascii(text).unwrap();
+            let labels: Vec<&[u8]> = name.iter().collect();
+            let count = labels.len();
+
+            let reversed: Vec<&[u8]> = name.iter().rev().collect();
+            assert_eq!(reversed, labels.iter().rev().copied().collect::<Vec<_>>());
+
+            // Alternate between the two ends, starting from either.
+            for start_at_back in [false, true] {
+                let mut iter = name.iter();
+                let (mut front, mut back) = (0, count);
+                let mut take_back = start_at_back;
+                while front < back {
+                    if take_back {
+                        back -= 1;
+                        assert_eq!(iter.next_back(), Some(labels[back]));
+                    } else {
+                        assert_eq!(iter.next(), Some(labels[front]));
+                        front += 1;
+                    }
+                    assert_eq!(iter.len(), back - front);
+                    take_back = !take_back;
+                }
+                assert_eq!(iter.next(), None);
+                assert_eq!(iter.next_back(), None);
+            }
+
+            // Two from the front, then everything from the back.
+            let mut iter = name.iter();
+            let skipped = iter.by_ref().take(2).count();
+            let rest: Vec<&[u8]> = iter.rev().collect();
+            assert_eq!(
+                rest,
+                labels[skipped..].iter().rev().copied().collect::<Vec<_>>()
+            );
+        }
     }
 
     #[test]
