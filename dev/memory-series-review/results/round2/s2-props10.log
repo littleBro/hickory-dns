@@ -1,0 +1,13 @@
+     Running tests/name_props.rs (/tmp/claude-0/-home-user-hickory-dns/d1215842-b9cb-5d92-b4b3-ea3f7ab793ef/scratchpad/target-series2/debug/deps/name_props-d83c1001d6cc1c5e)
+
+running 6 tests
+test compression_pointers_decode_expected_names ... ok
+test message_round_trip_with_compression ... ok
+test text_parsing_escapes_and_limits ... ok
+test decoder_never_panics_on_garbage ... ok
+test name_semantics_match_reference_model ... ok
+test decoder_matches_reference_state_machine ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.50s
+
+EXIT=0
