@@ -252,15 +252,6 @@ fn bench_clone_message_nxdomain(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_parse_message_cname(b: &mut Bencher) {
-    let bytes = cname_response().to_vec().unwrap();
-    b.iter(|| {
-        let mut decoder = BinDecoder::new(&bytes);
-        Message::read(&mut decoder)
-    })
-}
-
-#[bench]
 fn bench_parse_message_referral(b: &mut Bencher) {
     let bytes = referral_response().to_vec().unwrap();
     b.iter(|| {
