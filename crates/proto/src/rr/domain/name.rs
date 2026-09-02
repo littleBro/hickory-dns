@@ -75,6 +75,30 @@ impl Name {
         Ok(())
     }
 
+    /// Extends the name with a run of labels already in wire form: `run` holds exactly `labels`
+    /// length-prefixed labels of 1 to 63 bytes each, as established by the scan in
+    /// `read_inner`. Passing the count on keeps that scan the only walk over the run; debug
+    /// builds walk it again, since a wrong count would break the invariants every later label
+    /// walk relies on.
+    fn extend_from_wire(&mut self, run: &[u8], labels: u8) -> Result<(), DecodeError> {
+        debug_assert_eq!(
+            wire_run_labels(run),
+            Some(usize::from(labels)),
+            "run does not hold the labels the scan validated"
+        );
+
+        let new_len = self.encoded_len() + run.len();
+
+        if new_len > Self::MAX_LENGTH {
+            return Err(DecodeError::DomainNameTooLong(new_len));
+        };
+
+        self.label_data.extend_from_slice(run);
+        self.label_count += labels;
+
+        Ok(())
+    }
+
     /// Randomize the case of ASCII alpha characters in a name
     #[cfg(feature = "std")]
     pub fn randomize_label_case(&mut self) {
@@ -1006,6 +1030,21 @@ fn label_at(data: &[u8], start: u8) -> &[u8] {
     &data[start + 1..start + 1 + len]
 }
 
+/// The label count of a wire-form run, or `None` unless the run is exactly a sequence of
+/// labels of 1 to 63 bytes each.
+fn wire_run_labels(run: &[u8]) -> Option<usize> {
+    let (mut pos, mut count) = (0, 0);
+    while pos < run.len() {
+        let len = usize::from(run[pos]);
+        if len == 0 || len > 63 {
+            return None;
+        }
+        pos += 1 + len;
+        count += 1;
+    }
+    (pos == run.len()).then_some(count)
+}
+
 /// Compares two raw labels with the given comparison function, as in [`Label::cmp_with_f`].
 fn cmp_label<F: LabelCmp>(l: &[u8], r: &[u8]) -> Ordering {
     for (&a, &b) in l.iter().zip(r.iter()) {
@@ -1379,13 +1418,53 @@ fn read_inner(decoder: &mut BinDecoder<'_>, name: &mut Name) -> Result<(), Decod
             }
             // labels must have a maximum length of 63
             LabelParseState::Label => {
-                let label = decoder
-                    .read_character_data()?
-                    .verify_unwrap(|l| l.len() <= 63)
-                    .map_err(|l| DecodeError::LabelBytesTooLong(l.len()))?;
+                // With labels stored in wire form, a run of consecutive plain labels can be
+                // validated in one scan and appended as one slice. The scan stops at the root
+                // byte, a pointer, an unrecognized label code, the end of a pointed-to region,
+                // the name length budget, or a label running past the buffer; whatever stopped
+                // it is left to the surrounding state machine, which handles it as before.
+                let remaining = decoder.remaining_slice();
+                // The check at the top of the loop guarantees `decoder.index() < max_idx` here;
+                // `saturating_sub` keeps this arm total on its own. A zero budget just routes
+                // to the single-label path below, which reports the error as before.
+                let rel_max = match ptr_max_idx {
+                    Some(max_idx) => max_idx.saturating_sub(decoder.index()),
+                    None => remaining.len(),
+                };
 
-                name.extend_name(label)
-                    .map_err(|_| DecodeError::DomainNameTooLong(label.len()))?;
+                let mut run_len = 0;
+                let mut run_labels = 0;
+                while run_len < rel_max {
+                    let Some(&length) = remaining.get(run_len) else {
+                        break;
+                    };
+                    if length == 0 || length & 0b1100_0000 != 0 {
+                        break;
+                    }
+                    let step = 1 + length as usize;
+                    if remaining.len() - run_len < step
+                        || name.encoded_len() + run_len + step > Name::MAX_LENGTH
+                    {
+                        break;
+                    }
+                    run_len += step;
+                    run_labels += 1;
+                }
+
+                if run_len > 0 {
+                    let run = decoder
+                        .read_slice(run_len)?
+                        .unverified(/*validated during the scan above*/);
+                    name.extend_from_wire(run, run_labels)?;
+                } else {
+                    let label = decoder
+                        .read_character_data()?
+                        .verify_unwrap(|l| l.len() <= 63)
+                        .map_err(|l| DecodeError::LabelBytesTooLong(l.len()))?;
+
+                    name.extend_name(label)
+                        .map_err(|_| DecodeError::DomainNameTooLong(label.len()))?;
+                }
 
                 // reset to collect more data
                 LabelParseState::LabelLengthOrPointer
@@ -1814,6 +1893,113 @@ mod tests {
 
         let mut d = BinDecoder::new(&bytes);
         assert!(Name::read(&mut d).is_err());
+    }
+
+    /// Decodes a name at `offset` of `buffer`, returning the outcome and the decoder position.
+    fn read_at(buffer: &[u8], offset: usize) -> (Result<Name, DecodeError>, usize) {
+        let mut decoder = BinDecoder::new(buffer);
+        decoder.read_slice(offset).unwrap();
+        let name = Name::read(&mut decoder);
+        (name, decoder.index())
+    }
+
+    #[test]
+    fn test_read_run_then_root() {
+        // Plain labels up to the root byte are validated in one scan and appended in one piece.
+        let buffer = b"\x03www\x07example\x03com\x00";
+        let (name, index) = read_at(buffer, 0);
+        assert_eq!(name.unwrap(), Name::from_ascii("www.example.com.").unwrap());
+        assert_eq!(index, buffer.len());
+    }
+
+    #[test]
+    fn test_read_run_then_pointer() {
+        // The scan stops at the pointer, and the pointed-to labels form a run of their own,
+        // ended by the root byte inside the region.
+        let buffer = b"\x03com\x00\x03www\x07example\xC0\x00";
+        let (name, index) = read_at(buffer, 5);
+        assert_eq!(name.unwrap(), Name::from_ascii("www.example.com.").unwrap());
+        assert_eq!(index, buffer.len());
+
+        let buffer = b"\x03foo\x03bar\x00\x03baz\xC0\x00";
+        let (name, index) = read_at(buffer, 9);
+        assert_eq!(name.unwrap(), Name::from_ascii("baz.foo.bar.").unwrap());
+        assert_eq!(index, buffer.len());
+    }
+
+    #[test]
+    fn test_read_run_stops_at_pointed_region_bound() {
+        // A pointed-to region ends where the pointing name starts. Here it holds two labels and
+        // no root byte, so the run fills it exactly, and the state machine then reports the
+        // overlap the way it did label by label.
+        let buffer = b"\x03foo\x03bar\x03baz\xC0\x00";
+        let (name, _) = read_at(buffer, 8);
+        let error = name.unwrap_err();
+        assert!(
+            matches!(
+                error,
+                DecodeError::LabelOverlapsWithOther { label: 0, other: 8 }
+            ),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn test_read_run_stops_at_name_length_budget() {
+        // Three 63-byte labels fit in a name; a fourth of 62 bytes would make it 256 bytes.
+        // The scan leaves that label to the single-label path, which reports the overflow with
+        // the label's length, as before. One byte less fits exactly, through the run.
+        let mut prefix = Vec::new();
+        for _ in 0..3 {
+            prefix.push(63);
+            prefix.extend_from_slice(&[b'a'; 63]);
+        }
+
+        let mut too_long = prefix.clone();
+        too_long.push(62);
+        too_long.extend_from_slice(&[b'b'; 62]);
+        too_long.push(0);
+        let (name, _) = read_at(&too_long, 0);
+        let error = name.unwrap_err();
+        assert!(
+            matches!(error, DecodeError::DomainNameTooLong(62)),
+            "{error:?}"
+        );
+
+        let mut exact = prefix;
+        exact.push(61);
+        exact.extend_from_slice(&[b'b'; 61]);
+        exact.push(0);
+        let (name, index) = read_at(&exact, 0);
+        let name = name.unwrap();
+        assert_eq!(name.num_labels(), 4);
+        assert_eq!(name.iter().next_back().unwrap(), &[b'b'; 61]);
+        assert_eq!(index, exact.len());
+    }
+
+    #[test]
+    fn test_read_label_past_buffer_end_after_run() {
+        // The scan stops at a label that would run past the buffer; the single-label path then
+        // fails to read it.
+        let buffer = b"\x03foo\x05ba";
+        let (name, _) = read_at(buffer, 0);
+        let error = name.unwrap_err();
+        assert!(matches!(error, DecodeError::InsufficientBytes), "{error:?}");
+    }
+
+    #[test]
+    fn test_read_run_then_unrecognized_label_code() {
+        // The scan stops at a byte with a reserved high-bit pattern (01 or 10), which the state
+        // machine then rejects, naming the byte.
+        for code in [0x40u8, 0x80, 0xBF] {
+            let buffer = [b"\x03foo".as_slice(), &[code, b'x', b'y']].concat();
+            let (name, _) = read_at(&buffer, 0);
+            let error = name.unwrap_err();
+            assert!(
+                matches!(error, DecodeError::UnrecognizedLabelCode(c) if c == code),
+                "{error:?}"
+            );
+        }
     }
 
     #[test]

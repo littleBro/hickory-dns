@@ -184,6 +184,11 @@ impl<'a> BinDecoder<'a> {
         Ok(&self.buffer[index..self.index()])
     }
 
+    /// Returns the unread portion of the buffer, without advancing
+    pub(crate) fn remaining_slice(&self) -> &'a [u8] {
+        self.remaining
+    }
+
     /// Reads a byte from the buffer, equivalent to `Self::pop()`
     pub fn read_u8(&mut self) -> Result<Restrict<u8>, DecodeError> {
         self.pop()
