@@ -1,0 +1,391 @@
+     Running unittests src/lib.rs (/tmp/claude-0/-home-user-hickory-dns/d1215842-b9cb-5d92-b4b3-ea3f7ab793ef/scratchpad/target-series2/debug/deps/hickory_proto-56998fa04b3fdc39)
+
+running 311 tests
+test dnssec::algorithm::tests::test_into ... ok
+test dnssec::algorithm::tests::test_order ... ok
+test dnssec::crypto::tests::test_ec_encode_decode_pkcs8 ... ok
+test dnssec::crypto::tests::test_ec_p256_pkcs8 ... ok
+test dnssec::crypto::tests::test_ed25519_encode_decode_pkcs8 ... ok
+test dnssec::crypto::tests::test_rsasha1_nsec3sha1_uses_same_crypto_as_rsasha1 ... ok
+test dnssec::crypto::tests::test_rsasha256_decode_pkcs1 ... ok
+test dnssec::crypto::tests::test_rsasha256_encode_decode_pkcs8 ... ok
+test dnssec::proof::test_order ... ok
+test dnssec::rdata::cdnskey::tests::test ... ok
+test dnssec::rdata::cdnskey::tests::test_delete ... ok
+test dnssec::rdata::cds::tests::test ... ok
+test dnssec::rdata::cds::tests::test_delete ... ok
+test dnssec::crypto::tests::test_rsa ... ok
+test dnssec::rdata::dnskey::tests::accepts_real_world_data ... ok
+test dnssec::rdata::dnskey::tests::bad_protocol ... ok
+test dnssec::rdata::dnskey::tests::bad_public_key ... ok
+test dnssec::crypto::tests::test_ed25519 ... ok
+test dnssec::rdata::dnskey::tests::incomplete ... ok
+test dnssec::rdata::dnskey::tests::reserved_flags ... ok
+test dnssec::rdata::dnskey::tests::it_works ... ok
+test dnssec::rdata::dnskey::tests::test_calculate_key_tag_checksum ... ok
+test dnssec::rdata::dnskey::tests::secure_entry_point ... ok
+test dnssec::rdata::dnskey::tests::test_reserved_flags ... ok
+test dnssec::rdata::ds::tests::test ... ok
+test dnssec::rdata::dnskey::tests::test ... ok
+test dnssec::rdata::ds::tests::test_covers ... ok
+test dnssec::rdata::ds::tests::test_covers_fails_with_non_zone_key ... ok
+test dnssec::rdata::ds::tests::test_parsing ... ok
+test dnssec::rdata::ds::tests::test_from_key ... ok
+test dnssec::rdata::ds::tests::test_covers_uppercase ... ok
+test dnssec::rdata::key::tests::test_key_trust ... ok
+test dnssec::rdata::key::tests::test_key_usage ... ok
+test dnssec::rdata::key::tests::test_update_scope ... ok
+test dnssec::rdata::key::tests::test ... ok
+test dnssec::rdata::nsec3::tests::test ... ok
+test dnssec::rdata::nsec3::tests::test_dups ... ok
+test dnssec::rdata::nsec3param::tests::test ... ok
+test dnssec::rdata::nsec::tests::rfc4034_example_rdata ... ok
+test dnssec::rdata::nsec::tests::test ... ok
+test dnssec::rdata::rrsig::tests::test_get_filter ... ok
+test dnssec::rdata::sig::tests::test ... ok
+test dnssec::signer::tests::test_send_and_sync ... ok
+test dnssec::signer::tests::test_calculate_key_tag_pem ... ok
+test dnssec::signer::tests::test_rrset_tbs ... ok
+test dnssec::supported_algorithm::tests::test_has ... ok
+test dnssec::signer::tests::test_sign_and_verify_rrset ... ok
+test dnssec::supported_algorithm::tests::test_iterator ... ok
+test dnssec::supported_algorithm::tests::test_vec ... ok
+test dnssec::trust_anchor::tests::can_load_trust_anchor_file ... ok
+test dnssec::trust_anchor::tests::test_contains_dnskey_bytes ... ok
+test op::dns_request::tests::from_query_default_includes_edns ... ok
+test op::dns_request::tests::from_query_edns_disabled_no_opt ... ok
+test op::dns_response::tests::contains_any ... ok
+test op::dns_response::tests::not_a_response ... ok
+test op::dns_response::tests::contains_soa ... ok
+test op::dns_response::tests::test_contains_answer ... ok
+test op::header::tests::test_parse ... ok
+test op::header::tests::test_write ... ok
+test op::message::tests::rdata_zero_roundtrip ... ok
+test op::message::tests::nsec_deserialization ... ok
+test op::message::tests::test_emit_and_read_header ... ok
+test op::edns::tests::test_encode_decode ... ok
+test op::message::tests::test_emit_and_read_query ... ok
+test op::message::tests::test_emit_and_read_records ... ok
+test op::message::tests::test_header_counts_correction_after_emit_read ... ok
+test op::message::tests::test_legit_message ... ok
+test op::message::tests::test_read_records_multiple_sig0 ... ok
+test op::message::tests::test_read_records_edns_tsig ... ok
+test op::message::tests::test_read_records_edns ... ok
+test op::message::tests::test_read_records_opt_not_additional ... ok
+test op::message::tests::test_read_records_sig0_not_last ... ok
+test op::message::tests::test_read_records_multiple_tsig ... ok
+test op::message::tests::test_read_records_signed_multiple_edns ... ok
+test op::message::tests::test_read_records_tsig ... ok
+test op::message::tests::test_read_records_tsig_not_additional ... ok
+test op::message::tests::test_read_records_unsigned ... ok
+test op::message::tests::test_read_records_tsig_not_last ... ok
+test op::message::tests::test_read_records_unsigned_multiple_edns ... ok
+test op::query::tests::test_read_and_emit ... ok
+test rr::dns_class::tests::check_dns_class_parse_wont_panic_with_symbols ... ok
+test rr::dns_class::tests::test_order ... ok
+test rr::domain::label::tests::test_ascii_escape ... ok
+test rr::domain::label::tests::test_decoding ... ok
+test rr::domain::label::tests::test_from_ascii_adversial_utf8 ... ok
+test rr::domain::label::tests::test_encoding ... ok
+test rr::domain::label::tests::test_is_wildcard ... ok
+test rr::domain::label::tests::test_label_too_long_ascii ... ok
+test rr::domain::label::tests::test_label_too_long_ascii_with_utf8 ... ok
+test rr::domain::label::tests::test_label_too_long_raw ... ok
+test rr::domain::label::tests::test_label_too_long_utf8_puny_emoji ... ok
+test rr::domain::label::tests::test_label_too_long_utf8_puny_emoji_mixed ... ok
+test rr::domain::label::tests::test_label_too_long_utf8_puny_mixed ... ok
+test rr::domain::label::tests::test_partial_cmp ... ok
+test rr::domain::label::tests::test_to_lowercase ... ok
+test rr::domain::name::tests::eq_ignore_root_tests ... ok
+test rr::domain::name::tests::rfc4034_canonical_ordering_example ... ok
+test rr::domain::label::tests::test_to_cmp_f ... ok
+test rr::domain::name::tests::test_base_name ... ok
+test rr::domain::name::tests::test_bin_max_octets ... ok
+test rr::domain::name::tests::test_bin_overlap_enforced ... ok
+test rr::domain::name::tests::test_cmp_ignore_case ... ok
+test rr::domain::name::tests::test_double_ended_iterator ... ok
+test rr::domain::name::tests::test_encoded_len ... ok
+test rr::domain::name::tests::test_encoding ... ok
+test rr::domain::name::tests::test_cmp_with_unequal_label_counts ... ok
+test rr::domain::name::tests::test_folding_leaves_length_bytes_alone ... ok
+test rr::domain::name::tests::test_fqdn ... ok
+test rr::domain::name::tests::test_fqdn_escaped_dot ... ok
+test rr::domain::name::tests::test_from_ascii ... ok
+test rr::domain::name::tests::test_from_ipv4 ... ok
+test rr::domain::name::tests::test_from_str ... ok
+test rr::domain::name::tests::test_from_ipv6 ... ok
+test rr::domain::name::tests::test_from_utf8 ... ok
+test rr::domain::name::tests::test_hash ... ok
+test rr::domain::name::tests::test_into_name ... ok
+test rr::domain::name::tests::test_label_length_limit_from_text ... ok
+test rr::domain::name::tests::test_length_limits ... ok
+test rr::domain::name::tests::test_long_pointer_chain_small_stack ... ok
+test rr::domain::name::tests::test_mixed_direction_iteration ... ok
+test rr::domain::name::tests::test_name_is_small ... ok
+test rr::domain::name::tests::test_name_ord_constraints ... ok
+test rr::domain::name::tests::test_name_partialeq_constraints ... ok
+test rr::domain::name::tests::test_name_partialord_constraints ... ok
+test rr::domain::name::tests::test_name_too_long_with_append ... ok
+test rr::domain::name::tests::test_name_too_long_with_prepend ... ok
+test rr::domain::name::tests::test_num_labels ... ok
+test rr::domain::name::tests::test_octal_escape_multibyte_char ... ok
+test dnssec::crypto::tests::test_ec_p384_pkcs8 ... ok
+test rr::domain::name::tests::test_parse_arpa_name ... ok
+test rr::domain::name::tests::test_partial_cmp ... ok
+test rr::domain::name::tests::test_partial_cmp_eq ... ok
+test rr::domain::name::tests::test_pointer ... ok
+test rr::domain::name::tests::test_pointer_with_pointer_ending_labels ... ok
+test rr::domain::name::tests::test_prepend_label ... ok
+test rr::domain::name::tests::test_read ... ok
+test rr::domain::name::tests::test_read_label_past_buffer_end_after_run ... ok
+test rr::domain::name::tests::test_read_run_stops_at_name_length_budget ... ok
+test rr::domain::name::tests::test_read_run_stops_at_pointed_region_bound ... ok
+test rr::domain::name::tests::test_read_run_then_pointer ... ok
+test rr::domain::name::tests::test_read_run_then_root ... ok
+test rr::domain::name::tests::test_read_run_then_unrecognized_label_code ... ok
+test rr::domain::name::tests::test_recursive_pointer ... ok
+test rr::domain::name::tests::test_size_hint ... ok
+test rr::domain::name::tests::test_to_string ... ok
+test rr::domain::name::tests::test_underscore ... ok
+test rr::domain::name::tests::test_write_to ... ok
+test rr::domain::name::tests::test_zone_of ... ok
+test rr::domain::name::tests::test_zone_of_case ... ok
+test rr::lower_name::test_lower_name_is_small ... ok
+test rr::lower_name::test_name_lowername_roundtrip ... ok
+test rr::rdata::a::mytests::test_parse ... ok
+test rr::rdata::a::mytests::test_write_to ... ok
+test rr::rdata::aaaa::tests::test_emit ... ok
+test rr::rdata::aaaa::tests::test_read ... ok
+test rr::rdata::caa::tests::test_bad_tag ... ok
+test rr::rdata::caa::tests::test_encode_decode_iodef ... ok
+test rr::rdata::caa::tests::test_encode_decode_issue ... ok
+test rr::rdata::caa::tests::test_encode_decode_issuewild ... ok
+test rr::rdata::caa::tests::test_encode_decode_unknown ... ok
+test rr::rdata::caa::tests::test_encode_fqdn ... ok
+test rr::rdata::caa::tests::test_encode_non_fqdn ... ok
+test rr::rdata::caa::tests::test_name_non_ascii_character_escaped_dots_roundtrip ... ok
+test rr::rdata::caa::tests::test_parsing ... ok
+test rr::rdata::caa::tests::test_read_iodef ... ok
+test rr::rdata::caa::tests::test_read_issuer ... ok
+test rr::rdata::caa::tests::test_read_tag ... ok
+test rr::rdata::caa::tests::test_reserved_flags_round_trip ... ok
+test rr::rdata::caa::tests::test_to_string ... ok
+test rr::rdata::caa::tests::test_too_long_tag ... ok
+test rr::rdata::caa::tests::test_too_short_tag ... ok
+test rr::rdata::caa::tests::test_unicode_kv ... ok
+test rr::rdata::cert::tests::test_algorithm ... ok
+test rr::rdata::cert::tests::test_cert_creation ... ok
+test rr::rdata::cert::tests::test_cert_empty_cert_data ... ok
+test rr::rdata::cert::tests::test_cert_type ... ok
+test rr::rdata::cert::tests::test_invalid_base64_data ... ok
+test rr::rdata::cert::tests::test_invalid_cert_record_length ... ok
+test rr::rdata::cert::tests::test_invalid_token_digit ... ok
+test rr::rdata::cert::tests::test_missing_cert_data ... ok
+test rr::rdata::cert::tests::test_valid_cert_data ... ok
+test rr::rdata::cert::tests::test_valid_cert_data_length ... ok
+test rr::rdata::cert::tests::test_valid_cert_record ... ok
+test rr::rdata::csync::tests::test ... ok
+test rr::rdata::csync::tests::test_parsing ... ok
+test rr::rdata::csync::tests::test_parsing_fails ... ok
+test rr::rdata::hinfo::tests::test ... ok
+test rr::rdata::hinfo::tests::test_binary ... ok
+test rr::rdata::hinfo::tests::test_parsing ... ok
+test rr::rdata::hinfo::tests::test_parsing_fails ... ok
+test rr::rdata::mx::tests::test ... ok
+test rr::rdata::name::tests::test_it_to_string_should_not_stack_overflow ... ok
+test rr::rdata::naptr::tests::test ... ok
+test rr::rdata::naptr::tests::test_bad_data ... ok
+test rr::rdata::naptr::tests::test_parsing ... ok
+test rr::rdata::naptr::tests::test_parsing_fails ... ok
+test rr::rdata::null::tests::test ... ok
+test rr::rdata::openpgpkey::tests::test_parsing ... ok
+test rr::rdata::opt::tests::test ... ok
+test rr::rdata::opt::tests::test_eq_and_hash ... ok
+test rr::rdata::opt::tests::test_multiple_options_with_same_code ... ok
+test rr::rdata::opt::tests::test_nsid_payload_roundtrip ... ok
+test rr::rdata::opt::tests::test_nsid_payload_too_large ... ok
+test rr::rdata::opt::tests::test_read_client_subnet ... ok
+test rr::rdata::opt::tests::test_read_empty_option_at_end_of_opt ... ok
+test rr::rdata::opt::tests::test_write_client_subnet ... ok
+test rr::rdata::smimea::tests::test_parsing ... ok
+test rr::rdata::soa::tests::test ... ok
+test rr::rdata::soa::tests::test_parse ... ok
+test rr::rdata::srv::tests::test ... ok
+test rr::rdata::sshfp::tests::read_algorithm ... ok
+test rr::rdata::sshfp::tests::read_fingerprint_type ... ok
+test rr::rdata::sshfp::tests::test_encode_decode_sshfp ... ok
+test rr::rdata::sshfp::tests::test_parsing ... ok
+test rr::rdata::svcb::tests::read_svcb_key ... ok
+test rr::rdata::svcb::tests::read_svcb_key_to_u16 ... ok
+test rr::rdata::svcb::tests::test_encode_decode_svcb ... ok
+test rr::domain::name::tests::test_excessive_encoding_len ... ok
+test rr::rdata::svcb::tests::test_no_panic ... ok
+test rr::rdata::svcb::tests::test_parse_display ... ok
+test rr::rdata::svcb::tests::test_parsing ... ok
+test rr::rdata::svcb::tests::test_parsing_https ... ok
+test rr::rdata::svcb::tests::test_rfc9460_vectors ... ok
+test rr::rdata::svcb::tests::test_unknown_value_round_trip ... ok
+test rr::rdata::svcb::tests::test_unrestricted_output_size ... ok
+test rr::rdata::tlsa::tests::read_cert_usage ... ok
+test rr::rdata::tlsa::tests::read_matching ... ok
+test rr::rdata::tlsa::tests::read_selector ... ok
+test rr::rdata::tlsa::tests::test_encode_decode_tlsa ... ok
+test rr::rdata::tlsa::tests::test_parsing ... ok
+test rr::rdata::tsig::tests::test_encode_decode_tsig ... ok
+test rr::rdata::tsig::tests::test_sign_encode ... ok
+test rr::rdata::tsig::tests::test_sign_encode_id_changed ... ok
+test rr::rdata::txt::tests::publish_binary_txt_record ... ok
+test rr::rdata::txt::tests::test ... ok
+test rr::record::tests::test_emit_and_read ... ok
+test rr::record::tests::test_order ... ok
+test rr::record_data::tests::test_a ... ok
+test rr::record_data::tests::test_a_parse ... ok
+test rr::record_data::tests::test_aaaa ... ok
+test rr::record_data::tests::test_aaaa_parse ... ok
+test rr::record_data::tests::test_any ... ok
+test rr::record_data::tests::test_csync ... ok
+test rr::record_data::tests::test_csync_parse ... ok
+test rr::record_data::tests::test_ds ... ok
+test rr::record_data::tests::test_dynamically_generated ... ok
+test rr::record_data::tests::test_from_boxed_variants ... ok
+test rr::record_data::tests::test_ns_parse ... ok
+test rr::record_data::tests::test_order ... ok
+test rr::record_data::tests::test_rdata_is_small ... ok
+test rr::record_data::tests::test_read ... ok
+test rr::record_data::tests::test_write_to ... ok
+test rr::record_type::tests::check_record_type_parse_wont_panic_with_symbols ... ok
+test rr::record_type::tests::test_order ... ok
+test rr::record_type::tests::test_record_type_parse ... ok
+test rr::record_type_set::tests::test_encode_decode ... ok
+test rr::rr_set::test::test_insert ... ok
+test rr::rr_set::test::test_insert_cname ... ok
+test rr::rr_set::test::test_insert_soa ... ok
+test rr::rr_set::test::test_remove ... ok
+test rr::rr_set::test::test_remove_ns ... ok
+test rr::rr_set::test::test_remove_soa ... ok
+test rr::rr_set::test::test_size_hint ... ok
+test rr::serial_number::tests::add_wrapping ... ok
+test rr::serial_number::tests::equal ... ok
+test rr::serial_number::tests::greater ... ok
+test rr::serial_number::tests::greater_wrap ... ok
+test rr::serial_number::tests::less ... ok
+test rr::serial_number::tests::less_wrap ... ok
+test rr::serial_number::tests::none ... ok
+test rr::tsig::tests::test_send_and_sync ... ok
+test rr::tsig::tests::test_sign_and_verify_message_tsig ... ok
+test rr::tsig::tests::test_sign_and_verify_message_tsig_reject_invalid_mac ... ok
+test rr::tsig::tests::test_sign_and_verify_message_tsig_reject_keyname ... ok
+test serialize::binary::bin_tests::emit_character_data ... ok
+test serialize::binary::bin_tests::emit_i32 ... ok
+test serialize::binary::bin_tests::emit_u16 ... ok
+test serialize::binary::bin_tests::emit_u32 ... ok
+test serialize::binary::bin_tests::read_character_data ... ok
+test serialize::binary::bin_tests::read_i32 ... ok
+test serialize::binary::bin_tests::read_u16 ... ok
+test serialize::binary::bin_tests::read_u32 ... ok
+test serialize::binary::decoder::tests::test_read_slice ... ok
+test serialize::binary::decoder::tests::test_read_slice_from ... ok
+test serialize::binary::encoder::tests::test_label_compression_regression ... ok
+test serialize::binary::encoder::tests::test_max_size ... ok
+test serialize::binary::encoder::tests::test_max_size_0 ... ok
+test serialize::binary::encoder::tests::test_max_size_place ... ok
+test serialize::binary::encoder::tests::test_place ... ok
+test serialize::binary::encoder::tests::test_target_compression ... ok
+test serialize::binary::restrict::tests::test_checked_add ... ok
+test serialize::binary::restrict::tests::test_checked_mul ... ok
+test serialize::binary::restrict::tests::test_checked_sub ... ok
+test serialize::txt::trust_anchor::tests::accepts_real_world_data ... ok
+test serialize::txt::trust_anchor::tests::at_sign ... ok
+test serialize::txt::trust_anchor::tests::empty ... ok
+test serialize::txt::trust_anchor::tests::it_works ... ok
+test serialize::txt::trust_anchor::tests::no_ttl_field ... ok
+test serialize::txt::trust_anchor::tests::origin ... ok
+test serialize::txt::trust_anchor::tests::wrong_record_type ... ok
+test serialize::txt::zone::tests::test_zone_parse ... ok
+test serialize::txt::zone_lex::lex_test::blank ... ok
+test serialize::txt::zone_lex::lex_test::escape ... ok
+test serialize::txt::zone_lex::lex_test::lex ... ok
+test serialize::txt::zone_lex::lex_test::list ... ok
+test serialize::txt::zone_lex::lex_test::quoted_txt ... ok
+test serialize::txt::zone_lex::lex_test::soa ... ok
+test serialize::txt::zone_lex::lex_test::unicode ... ok
+test rr::domain::name::tests::test_ord_clamp_panic - should panic ... ok
+test rr::rdata::svcb::tests::test_encode_decode_svcb_bad_order - should panic ... ok
+test rr::domain::name::tests::test_label_randomization ... ok
+
+test result: ok. 311 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.12s
+
+     Running tests/integration/main.rs (/tmp/claude-0/-home-user-hickory-dns/d1215842-b9cb-5d92-b4b3-ea3f7ab793ef/scratchpad/target-series2/debug/deps/integration-e10bdbc7533697c3)
+
+running 2 tests
+test dnssec_presentation_format_tests::test_dnskey_display ... ok
+test dnssec_presentation_format_tests::test_ds_display ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/name_props.rs (/tmp/claude-0/-home-user-hickory-dns/d1215842-b9cb-5d92-b4b3-ea3f7ab793ef/scratchpad/target-series2/debug/deps/name_props-ab94c5830cc12ac6)
+
+running 5 tests
+test compression_pointers_decode_expected_names ... ok
+test message_round_trip_with_compression ... ok
+test text_parsing_escapes_and_limits ... ok
+test decoder_never_panics_on_garbage ... ok
+test name_semantics_match_reference_model ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+   Doc-tests hickory_proto
+
+running 48 tests
+test crates/proto/src/op/op_code.rs - op::op_code::u8 (line 66) ... ok
+test crates/proto/src/dnssec/proof.rs - dnssec::proof::Proven<T>::require_as_ref (line 168) ... ok
+test crates/proto/src/dnssec/proof.rs - dnssec::proof::Proven<T>::require (line 187) ... ok
+test crates/proto/src/op/op_code.rs - op::op_code::OpCode (line 92) ... ok
+test crates/proto/src/op/response_code.rs - op::response_code::ResponseCode (line 240) ... ok
+test crates/proto/src/rr/dns_class.rs - rr::dns_class::&'staticstr (line 100) ... ok
+test crates/proto/src/op/response_code.rs - op::response_code::u16 (line 197) ... ok
+test crates/proto/src/rr/dns_class.rs - rr::dns_class::DNSClass (line 122) ... ok
+test crates/proto/src/rr/dns_class.rs - rr::dns_class::u16 (line 143) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::append_domain (line 322) ... ok
+test crates/proto/src/rr/dns_class.rs - rr::dns_class::DNSClass::from_str (line 51) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::append_label (line 191) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::append_name (line 287) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::base_name (line 371) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::eq_ignore_root (line 783) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::eq_ignore_root_case (line 820) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::from_ascii (line 549) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::from_str_relaxed (line 603) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::from_labels (line 236) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::from_utf8 (line 581) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::into_wildcard (line 982) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::is_fqdn (line 152) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::is_localhost (line 940) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::is_root (line 133) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::is_wildcard (line 961) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::len (line 485) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::num_labels (line 454) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::parse (line 531) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::to_lowercase (line 342) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::trim_to (line 392) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::prepend_label (line 208) ... ok
+test crates/proto/src/rr/domain/name.rs - rr::domain::name::Name::zone_of (line 420) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::base_name (line 87) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::is_fqdn (line 66) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::num_labels (line 122) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::is_root (line 47) ... ok
+test crates/proto/src/rr/lower_name.rs - rr::lower_name::LowerName::zone_of (line 104) ... ok
+test crates/proto/src/rr/rdata/txt.rs - rr::rdata::txt::TXT::fmt (line 148) ... ok
+test crates/proto/src/rr/record_type.rs - rr::record_type::&'staticstr (line 335) ... ok
+test crates/proto/src/rr/record_type.rs - rr::record_type::RecordType::from (line 261) ... ok
+test crates/proto/src/rr/record_type.rs - rr::record_type::RecordType::from_str (line 207) ... ok
+test crates/proto/src/rr/record_type.rs - rr::record_type::u16 (line 392) ... ok
+test crates/proto/src/serialize/binary/encoder.rs - serialize::binary::encoder::BinEncoder<'a>::emit_character_data (line 262) ... ok
+test crates/proto/src/serialize/binary/decoder.rs - serialize::binary::decoder::BinDecoder<'a>::len (line 62) ... ok
+test crates/proto/src/serialize/binary/restrict.rs - serialize::binary::restrict::Restrict<T>::map (line 61) ... ok
+test crates/proto/src/serialize/binary/restrict.rs - serialize::binary::restrict::Restrict<T>::verify (line 16) ... ok
+test crates/proto/src/serialize/binary/restrict.rs - serialize::binary::restrict::Restrict<T>::verify_unwrap (line 37) ... ok
+test crates/proto/src/serialize/txt/mod.rs - serialize::txt::parse_ttl (line 51) ... ok
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.26s
+
+EXIT=0

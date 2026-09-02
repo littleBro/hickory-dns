@@ -204,3 +204,92 @@ table are meaningful. Raw logs in `results/round2/`.
 | `name_iter_rev_ip6_arpa` | 66.5 / 66.1 | 212 / 211 |
 | `name_iter_rev_max_labels` | 219 / 212 | 808 / 803 |
 | `name_parse_arpa_name_ip6` | 584 / 603 | 606 / 609 |
+
+# Round 3, 2026-09-02, after the simplifications (second brief, phase 1)
+
+Series heads: #6 `5ec9fc6`, #7 `39e0983`, #1 `5b28474`, #2 `c03fada`, #3 `31ac27a`, #4 `aa73353`.
+Columns: `main` (with #7's benches) | round-2 heads (#2 `e13908a`, #3 `ddbe251`) | round-3 heads, pass 1 ; pass 2.
+Checks on the merged series: rustfmt, clippy, no-std, proto suite (311 unit, 5 model, 48 doc), decoder differential identical, workspace 693 passed with `main`'s failure set, sizes 56/56/40/104. Raw logs in `results/round3/`.
+
+## Repository benches, nightly, one interleaved run (ns/iter)
+
+| bench | `main` | round 2 | round 3 |
+|---|---:|---:|---:|
+| `bench_clone_message_cname` | 144.17 ; 148.44 | 127.59 ; 114.20 | 112.89 ; 112.31 |
+| `bench_clone_message_nxdomain` | 125.05 ; 128.08 | 125.45 ; 103.64 | 123.67 ; 115.55 |
+| `bench_clone_message_referral` | 391.00 ; 401.61 | 272.36 ; 258.65 | 255.12 ; 265.92 |
+| `bench_emit_header` | 64.52 ; 64.24 | 62.12 ; 62.06 | 60.52 ; 68.38 |
+| `bench_emit_message` | 265.94 ; 266.55 | 255.31 ; 256.33 | 246.47 ; 292.85 |
+| `bench_emit_message_cve_2024_8508` | 470,014.38 ; 481,504.81 | 429,669.51 ; 400,015.28 | 410,121.03 ; 471,646.14 |
+| `bench_emit_message_no_reservation` | 282.47 ; 277.39 | 253.69 ; 260.58 | 249.85 ; 291.42 |
+| `bench_parse_header` | 4.77 ; 4.85 | 4.64 ; 4.52 | 4.78 ; 5.36 |
+| `bench_parse_header_no_reservation` | 75.16 ; 71.33 | 66.82 ; 67.24 | 65.83 ; 76.42 |
+| `bench_parse_message` | 331.31 ; 341.52 | 263.77 ; 261.22 | 265.88 ; 290.37 |
+| `bench_parse_message_referral` | 1,358.40 ; 1,436.95 | 1,009.72 ; 988.71 | 955.13 ; 1,066.54 |
+| `bench_parse_real_message` | 1,297.69 ; 1,477.14 | 961.89 ; 970.57 | 907.56 ; 1,016.81 |
+| `name_cmp_ip6_arpa` | 352.18 ; 355.74 | 27.62 ; 27.26 | 14.58 ; 14.39 |
+| `name_cmp_ip6_arpa_not_eq_root` | 20.23 ; 20.12 | 10.89 ; 10.74 | 170.48 ; 177.58 |
+| `name_cmp_long` | 84.17 ; 84.30 | 20.17 ; 20.63 | 11.02 ; 11.04 |
+| `name_cmp_long_case` | 66.08 ; 66.78 | 14.15 ; 14.07 | 5.89 ; 5.77 |
+| `name_cmp_long_not_eq` | 22.83 ; 22.77 | 38.33 ; 39.31 | 32.00 ; 30.07 |
+| `name_cmp_long_not_eq_root` | 14.07 ; 14.64 | 8.00 ; 7.82 | 63.42 ; 64.45 |
+| `name_cmp_medium` | 45.83 ; 48.04 | 27.80 ; 27.72 | 9.83 ; 9.80 |
+| `name_cmp_medium_case` | 36.83 ; 36.42 | 14.25 ; 14.48 | 5.70 ; 5.86 |
+| `name_cmp_medium_not_eq` | 22.92 ; 23.29 | 27.03 ; 26.87 | 17.46 ; 16.74 |
+| `name_cmp_short` | 17.69 ; 17.94 | 14.21 ; 14.02 | 10.99 ; 10.84 |
+| `name_cmp_short_case` | 14.48 ; 14.83 | 13.49 ; 13.76 | 5.61 ; 5.94 |
+| `name_cmp_short_not_eq` | 12.04 ; 12.27 | 8.86 ; 9.16 | 13.18 ; 12.97 |
+| `name_eq_medium` | 42.73 ; 44.75 | 6.86 ; 8.01 | 5.94 ; 5.98 |
+| `name_hash_medium` | 68.70 ; 66.27 | 19.79 ; 22.59 | 19.80 ; 19.61 |
+| `name_iter_rev_ip6_arpa` | 66.59 ; 68.27 | 222.06 ; 247.81 | 151.12 ; 152.79 |
+| `name_iter_rev_max_labels` | 210.05 ; 209.86 | 839.05 ; 882.69 | 509.66 ; 504.98 |
+| `name_iter_rev_medium` | 8.75 ; 8.63 | 19.86 ; 22.05 | 11.19 ; 11.36 |
+| `name_no_lower_long` | 28.30 ; 27.99 | 12.79 ; 13.51 | 12.26 ; 12.25 |
+| `name_no_lower_medium` | 26.63 ; 25.25 | 22.56 ; 25.38 | 20.57 ; 20.45 |
+| `name_no_lower_short` | 19.15 ; 18.81 | 13.40 ; 14.84 | 13.30 ; 12.92 |
+| `name_parse_arpa_name_ip6` | 623.97 ; 613.20 | 611.53 ; 724.94 | 660.63 ; 572.45 |
+| `name_to_lower_long` | 27.87 ; 28.64 | 12.96 ; 13.78 | 13.80 ; 12.26 |
+| `name_to_lower_medium` | 25.68 ; 25.67 | 23.48 ; 26.98 | 22.54 ; 20.63 |
+| `name_to_lower_short` | 18.84 ; 18.35 | 13.31 ; 15.12 | 13.93 ; 13.23 |
+
+## Stable probes, one window (ns)
+
+| probe | `main` | round 2 | round 3 |
+|---|---:|---:|---:|
+| cmp equal, case-variant, 3 labels | 51.0 ; 49.3 | 28.8 ; 29.7 | 25.6 ; 26.8 |
+| cmp differs at root-most label, 3 labels | 17.9 ; 17.4 | 12.2 ; 12.1 | 54.3 ; 56.9 |
+| cmp differs at leaf label, 3 labels | 37.7 ; 36.8 | 38.4 ; 39.9 | 31.2 ; 32.1 |
+| cmp equal, case-variant, 5 labels | 74.6 ; 72.1 | 30.9 ; 30.7 | 28.3 ; 29.5 |
+| cmp differs at root-most label, 5 labels | 17.9 ; 18.0 | 11.9 ; 11.9 | 62.3 ; 66.2 |
+| cmp differs at leaf label, 5 labels | 54.9 ; 53.5 | 43.8 ; 41.7 | 35.6 ; 36.7 |
+| cmp equal, case-variant, 8 labels | 123.0 ; 116.5 | 38.2 ; 37.7 | 35.7 ; 35.6 |
+| cmp differs at root-most label, 8 labels | 22.0 ; 21.0 | 16.6 ; 16.3 | 87.1 ; 90.7 |
+| cmp differs at leaf label, 8 labels | 85.8 ; 84.8 | 54.4 ; 54.8 | 43.2 ; 42.9 |
+| cmp equal, case-variant, 34 labels ip6.arpa | 359.6 ; 357.3 | 104.4 ; 107.7 | 106.8 ; 106.2 |
+| cmp differs at root-most label, 34 labels ip6.arpa | 16.2 ; 16.1 | 13.1 ; 13.0 | 275.0 ; 272.2 |
+| cmp differs at leaf label, 34 labels ip6.arpa | 303.8 ; 304.1 | 109.8 ; 109.7 | 114.4 ; 114.9 |
+| BTreeMap<LowerName> lookup, 20k entries (per lookup) | 991206.2 ; 938273.2 | 763848.7 ; 775584.6 | 673570.0 ; 653412.2 |
+| HashMap<LowerName> lookup, 20k entries (per lookup) | 107921.6 ; 104460.0 | 52480.3 ; 54415.7 | 54522.8 ; 52207.7 |
+| clone A answer (4 A) | 249.2 ; 235.6 | 131.3 ; 129.7 | 130.3 ; 135.9 |
+| clone CNAME answer (CNAME + A) | 150.3 ; 144.2 | 114.4 ; 115.3 | 113.1 ; 132.2 |
+| clone NXDOMAIN (SOA in authority) | 127.1 ; 122.9 | 105.9 ; 105.6 | 104.0 ; 106.7 |
+| clone referral (4 NS + 4 A) | 451.7 ; 440.9 | 268.5 ; 263.6 | 262.6 ; 259.0 |
+| parse A answer (97 bytes) | 780.4 ; 776.2 | 467.6 ; 453.4 | 441.1 ; 443.3 |
+| emit A answer | 877.8 ; 888.6 | 818.5 ; 826.1 | 753.3 ; 747.2 |
+| parse CNAME answer (100 bytes) | 590.1 ; 605.1 | 391.2 ; 391.5 | 407.1 ; 377.5 |
+| emit CNAME answer | 1165.0 ; 1180.7 | 1090.1 ; 1106.6 | 1047.3 ; 1037.0 |
+| parse NXDOMAIN (85 bytes) | 445.7 ; 454.6 | 369.3 ; 364.1 | 371.2 ; 359.0 |
+| emit NXDOMAIN | 774.8 ; 783.0 | 783.0 ; 751.6 | 713.6 ; 715.2 |
+| parse referral (169 bytes) | 1580.4 ; 1570.5 | 1119.6 ; 1127.9 | 1106.9 ; 1049.3 |
+| emit referral | 2121.3 ; 2148.0 | 1965.6 ; 2043.6 | 1867.6 ; 1826.8 |
+| parse 40-CNAME response (1243 bytes) | 10662.7 ; 10707.6 | 9493.4 ; 9789.6 | 9551.0 ; 9492.7 |
+| Name | 3714.1 ; 3435.4 | 4218.6 ; 4381.7 | 4086.8 ; 4052.2 |
+| Name eq case-variant (6 names) | 760.4 ; 738.3 | 283.8 ; 287.1 | 284.9 ; 285.4 |
+| Name cmp case-variant (6 names) | 641.1 ; 635.4 | 312.4 ; 311.5 | 290.5 ; 296.8 |
+| Name hash (6 names) | 667.0 ; 649.9 | 186.7 ; 189.9 | 188.5 ; 190.5 |
+| Name to_lowercase (6 names) | 261.1 ; 260.7 | 194.1 ; 197.3 | 196.1 ; 197.2 |
+| iter().rev() full walk (6 names) | 237.9 ; 233.3 | 373.5 ; 380.3 | 260.6 ; 266.7 |
+| parse_arpa_name ip6.arpa (34 labels) | 500.3 ; 491.8 | 574.4 ; 577.0 | 517.8 ; 519.5 |
+| iter().rev() full walk, 127 labels | 323.7 ; 333.7 | 782.5 ; 801.3 | 575.6 ; 576.5 |
+| iter() full walk, 127 labels | 319.2 ; 318.6 | 297.8 ; 299.1 | 297.5 ; 298.8 |
+| Name clone (6 names) | 88.2 ; 88.3 | 56.0 ; 55.9 | 53.0 ; 53.9 |

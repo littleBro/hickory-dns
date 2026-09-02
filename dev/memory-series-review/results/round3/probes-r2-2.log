@@ -1,0 +1,37 @@
+BENCH cmp equal, case-variant, 3 labels: 29.7 ns
+BENCH cmp differs at root-most label, 3 labels: 12.1 ns
+BENCH cmp differs at leaf label, 3 labels: 39.9 ns
+BENCH cmp equal, case-variant, 5 labels: 30.7 ns
+BENCH cmp differs at root-most label, 5 labels: 11.9 ns
+BENCH cmp differs at leaf label, 5 labels: 41.7 ns
+BENCH cmp equal, case-variant, 8 labels: 37.7 ns
+BENCH cmp differs at root-most label, 8 labels: 16.3 ns
+BENCH cmp differs at leaf label, 8 labels: 54.8 ns
+BENCH cmp equal, case-variant, 34 labels ip6.arpa: 107.7 ns
+BENCH cmp differs at root-most label, 34 labels ip6.arpa: 13.0 ns
+BENCH cmp differs at leaf label, 34 labels ip6.arpa: 109.7 ns
+BENCH BTreeMap<LowerName> lookup, 20k entries (per lookup): 775584.6 ns
+BENCH HashMap<LowerName> lookup, 20k entries (per lookup): 54415.7 ns
+BENCH clone A answer (4 A): 129.7 ns
+BENCH clone CNAME answer (CNAME + A): 115.3 ns
+BENCH clone NXDOMAIN (SOA in authority): 105.6 ns
+BENCH clone referral (4 NS + 4 A): 263.6 ns
+BENCH parse A answer (97 bytes): 453.4 ns
+BENCH emit A answer: 826.1 ns
+BENCH parse CNAME answer (100 bytes): 391.5 ns
+BENCH emit CNAME answer: 1106.6 ns
+BENCH parse NXDOMAIN (85 bytes): 364.1 ns
+BENCH emit NXDOMAIN: 751.6 ns
+BENCH parse referral (169 bytes): 1127.9 ns
+BENCH emit referral: 2043.6 ns
+BENCH parse 40-CNAME response (1243 bytes): 9789.6 ns
+BENCH Name::from_ascii (6 typical names): 4381.7 ns
+BENCH Name eq case-variant (6 names): 287.1 ns
+BENCH Name cmp case-variant (6 names): 311.5 ns
+BENCH Name hash (6 names): 189.9 ns
+BENCH Name to_lowercase (6 names): 197.3 ns
+BENCH iter().rev() full walk (6 names): 380.3 ns
+BENCH parse_arpa_name ip6.arpa (34 labels): 577.0 ns
+BENCH iter().rev() full walk, 127 labels: 801.3 ns
+BENCH iter() full walk, 127 labels: 299.1 ns
+BENCH Name clone (6 names): 55.9 ns
