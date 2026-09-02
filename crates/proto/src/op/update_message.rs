@@ -577,7 +577,7 @@ pub fn zone_transfer(zone_origin: Name, last_soa: Option<SOA>) -> Message {
 
     if let Some(soa) = last_soa {
         // for IXFR, old SOA is put as authority to indicate last known version
-        let record = Record::from_rdata(soa.mname.clone(), 0, RData::SOA(soa));
+        let record = Record::from_rdata(soa.mname.clone(), 0, RData::from(soa));
         message.add_authority(record);
     }
 

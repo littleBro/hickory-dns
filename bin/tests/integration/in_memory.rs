@@ -26,7 +26,7 @@ async fn test_cname_loop() {
         Record::from_rdata(
             Name::from_str("foo.example.com.").unwrap(),
             300,
-            RData::CNAME(CNAME(Name::from_str("foo.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(Name::from_str("foo.example.com.").unwrap()))),
         ),
         0,
     );
@@ -35,7 +35,7 @@ async fn test_cname_loop() {
         Record::from_rdata(
             Name::from_str("bar.example.com.").unwrap(),
             300,
-            RData::CNAME(CNAME(Name::from_str("foo.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(Name::from_str("foo.example.com.").unwrap()))),
         ),
         0,
     );
@@ -44,7 +44,7 @@ async fn test_cname_loop() {
         Record::from_rdata(
             Name::from_str("baz.example.com.").unwrap(),
             300,
-            RData::CNAME(CNAME(Name::from_str("boz.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(Name::from_str("boz.example.com.").unwrap()))),
         ),
         0,
     );
@@ -53,7 +53,7 @@ async fn test_cname_loop() {
         Record::from_rdata(
             Name::from_str("boz.example.com.").unwrap(),
             300,
-            RData::CNAME(CNAME(Name::from_str("biz.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(Name::from_str("biz.example.com.").unwrap()))),
         ),
         0,
     );
@@ -62,7 +62,7 @@ async fn test_cname_loop() {
         Record::from_rdata(
             Name::from_str("biz.example.com.").unwrap(),
             300,
-            RData::CNAME(CNAME(Name::from_str("baz.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(Name::from_str("baz.example.com.").unwrap()))),
         ),
         0,
     );
@@ -83,7 +83,7 @@ async fn test_cname_loop() {
     assert_eq!(record.name, Name::from_str("foo.example.com.").unwrap());
     assert_eq!(
         record.data,
-        RData::CNAME(CNAME(Name::from_str("foo.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(Name::from_str("foo.example.com.").unwrap())))
     );
 
     assert!(
@@ -108,13 +108,13 @@ async fn test_cname_loop() {
     assert_eq!(record.name, Name::from_str("bar.example.com.").unwrap());
     assert_eq!(
         record.data,
-        RData::CNAME(CNAME(Name::from_str("foo.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(Name::from_str("foo.example.com.").unwrap())))
     );
     let record = records[1];
     assert_eq!(record.name, Name::from_str("foo.example.com.").unwrap());
     assert_eq!(
         record.data,
-        RData::CNAME(CNAME(Name::from_str("foo.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(Name::from_str("foo.example.com.").unwrap())))
     );
 
     assert!(
@@ -139,19 +139,19 @@ async fn test_cname_loop() {
     assert_eq!(record.name, Name::from_str("baz.example.com.").unwrap());
     assert_eq!(
         record.data,
-        RData::CNAME(CNAME(Name::from_str("boz.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(Name::from_str("boz.example.com.").unwrap())))
     );
     let record = records[1];
     assert_eq!(record.name, Name::from_str("boz.example.com.").unwrap());
     assert_eq!(
         record.data,
-        RData::CNAME(CNAME(Name::from_str("biz.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(Name::from_str("biz.example.com.").unwrap())))
     );
     let record = records[2];
     assert_eq!(record.name, Name::from_str("biz.example.com.").unwrap());
     assert_eq!(
         record.data,
-        RData::CNAME(CNAME(Name::from_str("baz.example.com.").unwrap()))
+        RData::CNAME(Box::new(CNAME(Name::from_str("baz.example.com.").unwrap())))
     );
 
     assert!(

@@ -642,7 +642,7 @@ impl<P: ConnectionProvider> RecursorDnsHandle<P> {
                         depth,
                         request_time,
                         nameserver_pool.clone(),
-                        need_ips_for_names.iter(),
+                        need_ips_for_names.iter().map(|ns| ns.as_ref()),
                         &mut config_group,
                     )
                     .await?;

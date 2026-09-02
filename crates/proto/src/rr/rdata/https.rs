@@ -7,6 +7,7 @@
 
 //! HTTPS type and related implementations
 
+use alloc::boxed::Box;
 use core::{fmt, ops::Deref};
 
 #[cfg(feature = "serde")]
@@ -58,7 +59,7 @@ impl RecordData for HTTPS {
     }
 
     fn into_rdata(self) -> RData {
-        RData::HTTPS(self)
+        RData::HTTPS(Box::new(self))
     }
 }
 

@@ -460,7 +460,7 @@ impl Message {
 
             match record.data {
                 #[cfg(feature = "__dnssec")]
-                RData::DNSSEC(DNSSECRData::SIG(_)) => {
+                RData::DNSSEC(ref rdata) if matches!(rdata.as_ref(), DNSSECRData::SIG(_)) => {
                     warn!(
                         "message was SIG(0) signed, but support for SIG(0) message authentication was removed from hickory-dns"
                     );
@@ -471,7 +471,7 @@ impl Message {
                     sig = Some(Box::new(
                         record
                             .map(|data| match data {
-                                RData::TSIG(tsig) => Some(tsig),
+                                RData::TSIG(tsig) => Some(*tsig),
                                 _ => None,
                             })
                             .unwrap(/* match arm ensures correct type */),
@@ -1260,7 +1260,7 @@ mod tests {
 
     #[cfg(feature = "__dnssec")]
     fn fake_tsig() -> RData {
-        RData::TSIG(TSIG::new(
+        RData::TSIG(Box::new(TSIG::new(
             TsigAlgorithm::HmacSha256,
             0,
             0,
@@ -1268,6 +1268,6 @@ mod tests {
             0,
             None,
             vec![],
-        ))
+        )))
     }
 }

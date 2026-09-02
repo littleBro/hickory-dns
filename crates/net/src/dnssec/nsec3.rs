@@ -202,7 +202,10 @@ pub(super) fn verify_nsec3(
             // `num_labels` will show how many labels are there
             // in the wildcard that services the `query_name`
             let wildcard_num_labels = answers.iter().find_map(|record| match &record.data {
-                RData::DNSSEC(DNSSECRData::RRSIG(data)) => Some(data.input().num_labels),
+                RData::DNSSEC(rdata) => match rdata.as_ref() {
+                    DNSSECRData::RRSIG(data) => Some(data.input().num_labels),
+                    _ => None,
+                },
                 _ => None,
             });
             validate_nodata_response(query.query_type, wildcard_num_labels, &cx)
@@ -1099,14 +1102,17 @@ mod tests {
         let rrsig_record = Record::from_rdata(
             Name::from_ascii("a.z.w.example.")?,
             3600,
-            RData::DNSSEC(DNSSECRData::RRSIG(rrsig)),
+            RData::DNSSEC(Box::new(DNSSECRData::RRSIG(rrsig))),
         );
 
         let answers = [
             Record::from_rdata(
                 Name::from_ascii("a.z.w.example.")?,
                 3600,
-                RData::MX(rdata::MX::new(10, Name::from_ascii("a.z.w.example.")?)),
+                RData::MX(Box::new(rdata::MX::new(
+                    10,
+                    Name::from_ascii("a.z.w.example.")?,
+                ))),
             ),
             rrsig_record,
         ];

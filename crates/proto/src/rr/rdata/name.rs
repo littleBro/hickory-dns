@@ -30,6 +30,7 @@
 //! the description of name server logic in [RFC-1034] for details.
 //! ```
 
+use alloc::boxed::Box;
 use core::{fmt, ops::Deref};
 
 #[cfg(feature = "serde")]
@@ -74,7 +75,7 @@ macro_rules! name_rdata {
             }
 
             fn into_rdata(self) -> RData {
-                RData::$name(self)
+                RData::$name(Box::new(self))
             }
         }
 

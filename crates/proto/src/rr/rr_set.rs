@@ -517,6 +517,7 @@ impl<'r> Iterator for RrsetRecords<'r> {
 
 #[cfg(test)]
 mod test {
+    use alloc::boxed::Box;
     use core::net::Ipv4Addr;
     use core::str::FromStr;
 
@@ -591,7 +592,7 @@ mod test {
             rr_set.insert_rrsig(Record::from_rdata(
                 name,
                 3600,
-                RData::DNSSEC(DNSSECRData::RRSIG(RRSIG::from_sig(input, vec![]))),
+                RData::DNSSEC(Box::new(DNSSECRData::RRSIG(RRSIG::from_sig(input, vec![])))),
             ));
 
             assert_eq!(rr_set.records_with_rrsigs().size_hint(), (3, Some(3)));
@@ -608,7 +609,7 @@ mod test {
         let insert = Record::from_rdata(
             name.clone(),
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::from_str("sns.dns.icann.org.").unwrap(),
                 Name::from_str("noc.dns.icann.org.").unwrap(),
                 2015082403,
@@ -616,12 +617,12 @@ mod test {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         );
         let same_serial = Record::from_rdata(
             name.clone(),
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::from_str("sns.dns.icann.net.").unwrap(),
                 Name::from_str("noc.dns.icann.net.").unwrap(),
                 2015082403,
@@ -629,12 +630,12 @@ mod test {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         );
         let new_serial = Record::from_rdata(
             name,
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::from_str("sns.dns.icann.net.").unwrap(),
                 Name::from_str("noc.dns.icann.net.").unwrap(),
                 2015082404,
@@ -642,7 +643,7 @@ mod test {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         );
 
         assert!(rr_set.insert(insert.clone(), 0));
@@ -670,8 +671,8 @@ mod test {
         let record_type = RecordType::CNAME;
         let mut rr_set = RecordSet::new(name.clone(), record_type, 0);
 
-        let insert = Record::from_rdata(name.clone(), 3600, RData::CNAME(CNAME(cname)));
-        let new_record = Record::from_rdata(name, 3600, RData::CNAME(CNAME(new_cname)));
+        let insert = Record::from_rdata(name.clone(), 3600, RData::CNAME(Box::new(CNAME(cname))));
+        let new_record = Record::from_rdata(name, 3600, RData::CNAME(Box::new(CNAME(new_cname))));
 
         assert!(rr_set.insert(insert.clone(), 0));
         assert!(rr_set.records_without_rrsigs().any(|x| x == &insert));
@@ -718,7 +719,7 @@ mod test {
         let insert = Record::from_rdata(
             name,
             3600,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::from_str("sns.dns.icann.org.").unwrap(),
                 Name::from_str("noc.dns.icann.org.").unwrap(),
                 2015082403,
@@ -726,7 +727,7 @@ mod test {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         );
 
         assert!(rr_set.insert(insert.clone(), 0));
@@ -743,12 +744,12 @@ mod test {
         let ns1 = Record::from_rdata(
             name.clone(),
             86400,
-            RData::NS(NS(Name::from_str("a.iana-servers.net.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("a.iana-servers.net.").unwrap()))),
         );
         let ns2 = Record::from_rdata(
             name,
             86400,
-            RData::NS(NS(Name::from_str("b.iana-servers.net.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("b.iana-servers.net.").unwrap()))),
         );
 
         assert!(rr_set.insert(ns1.clone(), 0));

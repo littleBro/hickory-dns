@@ -7,6 +7,7 @@
 
 //! start of authority record defining ownership and defaults for the zone
 
+use alloc::boxed::Box;
 use alloc::string::ToString;
 use core::fmt;
 
@@ -287,7 +288,7 @@ impl RecordData for SOA {
     }
 
     fn into_rdata(self) -> RData {
-        RData::SOA(self)
+        RData::SOA(Box::new(self))
     }
 }
 

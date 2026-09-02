@@ -45,10 +45,10 @@ pub(crate) fn parse_zone_file(path: &Path) -> Result<Vec<Record>, String> {
                     tokens[1]
                         .parse()
                         .map_err(|e| format!("NS record TTL error: {e:?}"))?,
-                    RData::NS(rdata::NS(
+                    RData::NS(Box::new(rdata::NS(
                         Name::from_ascii(tokens[4])
                             .map_err(|e| format!("NS record name error: {e:?}"))?,
-                    )),
+                    ))),
                 ));
             }
             "SOA" => {
@@ -58,7 +58,7 @@ pub(crate) fn parse_zone_file(path: &Path) -> Result<Vec<Record>, String> {
                     tokens[1]
                         .parse()
                         .map_err(|e| format!("SOA record TTL error: {e:?}"))?,
-                    RData::SOA(rdata::SOA::new(
+                    RData::SOA(Box::new(rdata::SOA::new(
                         Name::from_ascii(tokens[4])
                             .map_err(|e| format!("SOA record mname error: {e:?}"))?,
                         Name::from_ascii(tokens[5])
@@ -78,7 +78,7 @@ pub(crate) fn parse_zone_file(path: &Path) -> Result<Vec<Record>, String> {
                         tokens[10]
                             .parse()
                             .map_err(|e| format!("SOA record minimum error: {e:?}"))?,
-                    )),
+                    ))),
                 ));
             }
             "RRSIG" => {
@@ -141,7 +141,7 @@ pub(crate) fn parse_zone_file(path: &Path) -> Result<Vec<Record>, String> {
                     tokens[1]
                         .parse()
                         .map_err(|e| format!("RRSIG ttl error: {e:?}"))?,
-                    RData::DNSSEC(DNSSECRData::RRSIG(rrsig)),
+                    RData::from(DNSSECRData::RRSIG(rrsig)),
                 ));
             }
             "NSEC3" => {
@@ -172,7 +172,7 @@ pub(crate) fn parse_zone_file(path: &Path) -> Result<Vec<Record>, String> {
                     tokens[1]
                         .parse()
                         .map_err(|e| format!("NSEC3 ttl error: {e:?}"))?,
-                    RData::DNSSEC(DNSSECRData::NSEC3(NSEC3::new(
+                    RData::from(DNSSECRData::NSEC3(NSEC3::new(
                         Nsec3HashAlgorithm::try_from(
                             tokens[4]
                                 .parse::<u8>()
@@ -202,7 +202,7 @@ pub(crate) fn parse_zone_file(path: &Path) -> Result<Vec<Record>, String> {
                     tokens[1]
                         .parse()
                         .map_err(|e| format!("DNSKEY ttl error: {e:?}"))?,
-                    RData::DNSSEC(DNSSECRData::DNSKEY(DNSKEY::new(
+                    RData::from(DNSSECRData::DNSKEY(DNSKEY::new(
                         true,
                         tokens[4] == "257",
                         false,
@@ -224,7 +224,7 @@ pub(crate) fn parse_zone_file(path: &Path) -> Result<Vec<Record>, String> {
                     tokens[1]
                         .parse()
                         .map_err(|e| format!("NSEC3PARAM ttl error: {e:?}"))?,
-                    RData::DNSSEC(DNSSECRData::NSEC3PARAM(NSEC3PARAM::new(
+                    RData::from(DNSSECRData::NSEC3PARAM(NSEC3PARAM::new(
                         Nsec3HashAlgorithm::try_from(
                             tokens[4]
                                 .parse::<u8>()

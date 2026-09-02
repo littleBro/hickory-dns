@@ -424,14 +424,18 @@ mod tests {
         let mut a = Record::from_rdata(
             origin.clone(),
             86400,
-            RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap())),
+            RData::NS(Box::new(NS(
+                Name::parse("a.iana-servers.net.", None).unwrap()
+            ))),
         );
         a.dns_class = DNSClass::IN;
 
         let mut b = Record::from_rdata(
             origin.clone(),
             86400,
-            RData::NS(NS(Name::parse("b.iana-servers.net.", None).unwrap())),
+            RData::NS(Box::new(NS(
+                Name::parse("b.iana-servers.net.", None).unwrap()
+            ))),
         );
         b.dns_class = DNSClass::IN;
         let rrset = [a, b];
@@ -492,12 +496,16 @@ mod tests {
             Record::from_rdata(
                 origin.clone(),
                 86400,
-                RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap())),
+                RData::NS(Box::new(NS(
+                    Name::parse("a.iana-servers.net.", None).unwrap()
+                ))),
             ),
             Record::from_rdata(
                 origin.clone(),
                 86400,
-                RData::NS(NS(Name::parse("b.iana-servers.net.", None).unwrap())),
+                RData::NS(Box::new(NS(
+                    Name::parse("b.iana-servers.net.", None).unwrap()
+                ))),
             ),
         ];
 
@@ -507,7 +515,9 @@ mod tests {
         let mut a_ch = Record::from_rdata(
             origin.clone(),
             86400,
-            RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap())),
+            RData::NS(Box::new(NS(
+                Name::parse("a.iana-servers.net.", None).unwrap()
+            ))),
         );
         a_ch.dns_class = DNSClass::CH;
 
@@ -515,23 +525,31 @@ mod tests {
             Record::from_rdata(
                 origin.clone(),
                 86400,
-                RData::CNAME(CNAME(Name::parse("a.iana-servers.net.", None).unwrap())),
+                RData::CNAME(Box::new(CNAME(
+                    Name::parse("a.iana-servers.net.", None).unwrap(),
+                ))),
             ), // different type
             Record::from_rdata(
                 Name::parse("www.example.com.", None).unwrap(),
                 86400,
-                RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap())),
+                RData::NS(Box::new(NS(
+                    Name::parse("a.iana-servers.net.", None).unwrap()
+                ))),
             ), // different name
             a_ch, // different class
             Record::from_rdata(
                 origin.clone(),
                 86400,
-                RData::NS(NS(Name::parse("a.iana-servers.net.", None).unwrap())),
+                RData::NS(Box::new(NS(
+                    Name::parse("a.iana-servers.net.", None).unwrap()
+                ))),
             ),
             Record::from_rdata(
                 origin.clone(),
                 86400,
-                RData::NS(NS(Name::parse("b.iana-servers.net.", None).unwrap())),
+                RData::NS(Box::new(NS(
+                    Name::parse("b.iana-servers.net.", None).unwrap()
+                ))),
             ),
         ];
 

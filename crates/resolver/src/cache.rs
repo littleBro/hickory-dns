@@ -671,7 +671,7 @@ mod tests {
         message.add_authority(Record::from_rdata(
             Name::from_str("example.com.").unwrap(),
             30,
-            RData::NS(NS(Name::from_str("ns1.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns1.example.com.").unwrap()))),
         ));
 
         let ttls = TtlConfig::from(TtlBounds {
@@ -892,10 +892,14 @@ mod tests {
         norecs.authorities = Some(Arc::new([Record::from_rdata(
             zone_name.clone(),
             10,
-            RData::NS(NS(ns_name.clone())),
+            RData::NS(Box::new(NS(ns_name.clone()))),
         )]));
         norecs.ns = Some(Arc::new([ForwardNSData {
-            ns: Record::from_rdata(zone_name.clone(), 10, RData::NS(NS(ns_name.clone()))),
+            ns: Record::from_rdata(
+                zone_name.clone(),
+                10,
+                RData::NS(Box::new(NS(ns_name.clone()))),
+            ),
             glue: Arc::new([Record::from_rdata(
                 ns_name.clone(),
                 10,
@@ -1053,7 +1057,11 @@ mod tests {
         message.add_query(query.clone());
 
         // Short-TTL CNAME alias
-        message.add_answer(Record::from_rdata(cname, 5, RData::CNAME(CNAME(a.clone()))));
+        message.add_answer(Record::from_rdata(
+            cname,
+            5,
+            RData::CNAME(Box::new(CNAME(a.clone()))),
+        ));
 
         // Terminal A record with 24hr TTL.
         message.add_answer(Record::from_rdata(

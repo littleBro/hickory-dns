@@ -21,6 +21,7 @@
 //! ```
 #![allow(clippy::use_self)]
 
+use alloc::boxed::Box;
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use core::{fmt, str};
 
@@ -723,7 +724,7 @@ impl RecordData for CAA {
     }
 
     fn into_rdata(self) -> RData {
-        RData::CAA(self)
+        RData::CAA(Box::new(self))
     }
 }
 
@@ -1181,7 +1182,7 @@ mod tests {
 
         match RData::try_from_str(RecordType::CAA, input_string).expect("CAA rdata parse failed") {
             RData::CAA(parsed_rdata) => assert_eq!(
-                expected_rdata, parsed_rdata,
+                expected_rdata, *parsed_rdata,
                 "CAA rdata was not parsed as expected. input={input_string:?} expected_rdata={expected_rdata:?} parsed_rdata={parsed_rdata:?}",
             ),
             parsed_rdata => panic!("Parsed RData is not CAA: {:?}", parsed_rdata),

@@ -104,7 +104,7 @@ fn bench_emit_message_cve_2024_8508(b: &mut Bencher) {
                 let record = Record::from_rdata(
                     Name::parse(&format!("l{i}.l{j}.l{k}.example."), None).unwrap(),
                     86400,
-                    RData::PTR(PTR(
+                    RData::from(PTR(
                         Name::parse(&format!("l{i}.l{j}.l{k}.test."), None).unwrap()
                     )),
                 );

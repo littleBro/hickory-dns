@@ -123,7 +123,7 @@ impl MockRecord {
             query_name: rr_name.clone(),
             query_type: RecordType::NS,
             record_name: rr_name.clone(),
-            record_data: RData::NS(NS(ns_name.clone())),
+            record_data: RData::NS(Box::new(NS(ns_name.clone()))),
             section: MockResponseSection::Authority,
         }
     }
@@ -135,7 +135,15 @@ impl MockRecord {
             query_name: rr_name.clone(),
             query_type: RecordType::SOA,
             record_name: rr_name.clone(),
-            record_data: RData::SOA(SOA::new(mname.clone(), rname.clone(), 1, 1, 1, 1, 1)),
+            record_data: RData::SOA(Box::new(SOA::new(
+                mname.clone(),
+                rname.clone(),
+                1,
+                1,
+                1,
+                1,
+                1,
+            ))),
             section: MockResponseSection::Authority,
         }
     }

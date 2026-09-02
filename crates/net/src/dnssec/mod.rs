@@ -258,7 +258,10 @@ impl<H: DnsHandle> DnssecDnsHandle<H> {
                     .any(|r| r.name == rr.name && r.proof == Proof::Secure)
                 {
                     match &rr.data {
-                        RData::DNSSEC(DNSSECRData::NSEC3(nsec3)) => Some((&rr.name, nsec3)),
+                        RData::DNSSEC(rdata) => match rdata.as_ref() {
+                            DNSSECRData::NSEC3(nsec3) => Some((&rr.name, nsec3)),
+                            _ => None,
+                        },
                         _ => None,
                     }
                 } else {
@@ -277,7 +280,10 @@ impl<H: DnsHandle> DnssecDnsHandle<H> {
                     .any(|r| r.name == rr.name && r.proof == Proof::Secure)
                 {
                     match &rr.data {
-                        RData::DNSSEC(DNSSECRData::NSEC(nsec)) => Some((&rr.name, nsec)),
+                        RData::DNSSEC(rdata) => match rdata.as_ref() {
+                            DNSSECRData::NSEC(nsec) => Some((&rr.name, nsec)),
+                            _ => None,
+                        },
                         _ => None,
                     }
                 } else {
@@ -691,7 +697,10 @@ impl<H: DnsHandle> DnssecDnsHandle<H> {
                     .into_iter()
                     .filter_map(|r| {
                         r.map(|data| match data {
-                            RData::DNSSEC(DNSSECRData::DS(ds)) => Some(ds),
+                            RData::DNSSEC(rdata) => match *rdata {
+                                DNSSECRData::DS(ds) => Some(ds),
+                                _ => None,
+                            },
                             _ => None,
                         })
                     });
@@ -1473,7 +1482,10 @@ impl<'a> RrsetMap<'a> {
         let mut map = HashMap::<RrKey, Rrset<'_>>::new();
         for record in records.iter_mut() {
             let (is_rrsig, record_type) = match &record.data {
-                RData::DNSSEC(DNSSECRData::RRSIG(rrsig)) => (true, rrsig.input().type_covered),
+                RData::DNSSEC(rdata) => match rdata.as_ref() {
+                    DNSSECRData::RRSIG(rrsig) => (true, rrsig.input().type_covered),
+                    _ => (false, record.record_type()),
+                },
                 _ => (false, record.record_type()),
             };
 
@@ -1608,10 +1620,15 @@ impl<'a> VerifiedRrset<'a> {
                 Proof::Secure,
                 Some(Record {
                     name,
-                    data: RData::DNSSEC(DNSSECRData::RRSIG(rrsig)),
+                    data: RData::DNSSEC(rdata),
                     ..
                 }),
-            ) => RrsigVerificationOutcome::Secure { owner: name, rrsig },
+            ) => match rdata.as_ref() {
+                DNSSECRData::RRSIG(rrsig) => {
+                    RrsigVerificationOutcome::Secure { owner: name, rrsig }
+                }
+                _ => RrsigVerificationOutcome::Bogus,
+            },
             (Proof::Insecure, _) => RrsigVerificationOutcome::Insecure,
             (Proof::Bogus, _) | (Proof::Indeterminate, _) | (Proof::Secure, _) => {
                 RrsigVerificationOutcome::Bogus
@@ -1823,7 +1840,10 @@ fn verify_nsec(
                     return None;
                 }
 
-                let RData::DNSSEC(DNSSECRData::RRSIG(rrsig)) = &r.data else {
+                let RData::DNSSEC(rdata) = &r.data else {
+                    return None;
+                };
+                let DNSSECRData::RRSIG(rrsig) = rdata.as_ref() else {
                     return None;
                 };
 
@@ -2347,7 +2367,7 @@ mod test {
         let mut rrsig_record = Record::from_rdata(
             Name::from_ascii("a.z.w.example.")?,
             3600,
-            RData::DNSSEC(DNSSECRData::RRSIG(rrsig)),
+            RData::DNSSEC(Box::new(DNSSECRData::RRSIG(rrsig))),
         );
         rrsig_record.proof = Proof::Secure;
 
@@ -2355,7 +2375,10 @@ mod test {
             Record::from_rdata(
                 Name::from_ascii("a.z.w.example.")?,
                 3600,
-                RData::MX(rdata::MX::new(10, Name::from_ascii("a.z.w.example.")?)),
+                RData::MX(Box::new(rdata::MX::new(
+                    10,
+                    Name::from_ascii("a.z.w.example.")?,
+                ))),
             ),
             rrsig_record,
         ];
@@ -2428,7 +2451,7 @@ mod test {
         let mut rrsig_record = Record::from_rdata(
             Name::from_ascii("a.z.w.example.")?,
             3600,
-            RData::DNSSEC(DNSSECRData::RRSIG(rrsig)),
+            RData::DNSSEC(Box::new(DNSSECRData::RRSIG(rrsig))),
         );
         rrsig_record.proof = Proof::Secure;
 
@@ -2436,7 +2459,10 @@ mod test {
             Record::from_rdata(
                 Name::from_ascii("a.z.w.example.")?,
                 3600,
-                RData::MX(rdata::MX::new(10, Name::from_ascii("a.z.w.example.")?)),
+                RData::MX(Box::new(rdata::MX::new(
+                    10,
+                    Name::from_ascii("a.z.w.example.")?,
+                ))),
             ),
             rrsig_record,
         ];

@@ -36,7 +36,7 @@ use crate::{
 };
 
 static LOCALHOST: Lazy<RData> =
-    Lazy::new(|| RData::PTR(PTR(Name::from_ascii("localhost.").unwrap())));
+    Lazy::new(|| RData::PTR(Box::new(PTR(Name::from_ascii("localhost.").unwrap()))));
 static LOCALHOST_V4: Lazy<RData> = Lazy::new(|| RData::A(A::new(127, 0, 0, 1)));
 static LOCALHOST_V6: Lazy<RData> = Lazy::new(|| RData::AAAA(AAAA::new(0, 0, 0, 0, 0, 0, 0, 1)));
 
@@ -326,7 +326,8 @@ where
                         (Cow::Borrowed(&query.name), INITIAL_TTL, false),
                         |(search_name, cname_ttl, was_cname), r| {
                             match &r.data {
-                                RData::CNAME(CNAME(cname)) => {
+                                RData::CNAME(cname_rdata) => {
+                                    let CNAME(cname) = cname_rdata.as_ref();
                                     // take the minimum TTL of the cname_ttl and the next record in the chain
                                     let ttl = cname_ttl.min(r.ttl);
                                     debug_assert_eq!(r.record_type(), RecordType::CNAME);
@@ -684,7 +685,9 @@ mod tests {
         message.insert_answers(vec![Record::from_rdata(
             Name::from_str("www.example.com.").unwrap(),
             86400,
-            RData::CNAME(CNAME(Name::from_str("actual.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(
+                Name::from_str("actual.example.com.").unwrap(),
+            ))),
         )]);
         Ok(DnsResponse::from_message(message.into_response()).unwrap())
     }
@@ -699,12 +702,12 @@ mod tests {
         message.insert_answers(vec![Record::from_rdata(
             Name::from_str("_443._tcp.www.example.com.").unwrap(),
             86400,
-            RData::SRV(SRV::new(
+            RData::SRV(Box::new(SRV::new(
                 1,
                 2,
                 443,
                 Name::from_str("www.example.com.").unwrap(),
-            )),
+            ))),
         )]);
         Ok(DnsResponse::from_message(message.into_response()).unwrap())
     }
@@ -719,7 +722,7 @@ mod tests {
         message.insert_answers(vec![Record::from_rdata(
             Name::from_str("www.example.com.").unwrap(),
             86400,
-            RData::NS(NS(Name::from_str("www.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("www.example.com.").unwrap()))),
         )]);
         Ok(DnsResponse::from_message(message.into_response()).unwrap())
     }
@@ -745,7 +748,9 @@ mod tests {
             &[Record::from_rdata(
                 Name::from_str("www.example.com.").unwrap(),
                 86400,
-                RData::CNAME(CNAME(Name::from_str("actual.example.com.").unwrap()))
+                RData::CNAME(Box::new(CNAME(
+                    Name::from_str("actual.example.com.").unwrap()
+                )))
             )]
         );
     }
@@ -789,12 +794,12 @@ mod tests {
             &[Record::from_rdata(
                 Name::from_str("_443._tcp.www.example.com.").unwrap(),
                 86400,
-                RData::SRV(SRV::new(
+                RData::SRV(Box::new(SRV::new(
                     1,
                     2,
                     443,
                     Name::from_str("www.example.com.").unwrap(),
-                ))
+                )))
             )]
         );
     }
@@ -809,7 +814,9 @@ mod tests {
         message.add_answer(Record::from_rdata(
             Name::from_str("www.example.com.").unwrap(),
             86400,
-            RData::CNAME(CNAME(Name::from_str("actual.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(
+                Name::from_str("actual.example.com.").unwrap(),
+            ))),
         ));
         message.insert_additionals(vec![
             Record::from_rdata(
@@ -848,15 +855,15 @@ mod tests {
             .iter()
             .map(|r| r.data.clone())
             .collect::<Vec<_>>();
-        assert!(answers.contains(&RData::SRV(SRV::new(
+        assert!(answers.contains(&RData::SRV(Box::new(SRV::new(
             1,
             2,
             443,
             Name::from_str("www.example.com.").unwrap(),
-        ))));
-        assert!(answers.contains(&RData::CNAME(CNAME(
+        )))));
+        assert!(answers.contains(&RData::CNAME(Box::new(CNAME(
             Name::from_str("actual.example.com.").unwrap()
-        ))));
+        )))));
 
         // Additionals section should have A + AAAA records
         let additionals = ips
@@ -927,7 +934,9 @@ mod tests {
         message.add_answer(Record::from_rdata(
             Name::from_str("www.example.com.").unwrap(),
             86400,
-            RData::CNAME(CNAME(Name::from_str("actual.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(
+                Name::from_str("actual.example.com.").unwrap(),
+            ))),
         ));
         message.insert_additionals(vec![
             Record::from_rdata(
@@ -963,10 +972,12 @@ mod tests {
             .iter()
             .map(|r| r.data.clone())
             .collect::<Vec<_>>();
-        assert!(answers.contains(&RData::NS(NS(Name::from_str("www.example.com.").unwrap()))));
-        assert!(answers.contains(&RData::CNAME(CNAME(
+        assert!(answers.contains(&RData::NS(Box::new(NS(
+            Name::from_str("www.example.com.").unwrap()
+        )))));
+        assert!(answers.contains(&RData::CNAME(Box::new(CNAME(
             Name::from_str("actual.example.com.").unwrap()
-        ))));
+        )))));
 
         // Additionals section should have A + AAAA records
         let additionals = ips
@@ -1000,12 +1011,12 @@ mod tests {
             Record::from_rdata(
                 Name::from_str("example.com.").unwrap(),
                 3600,
-                RData::NS(NS(Name::from_str("ns1.example.com.").unwrap())),
+                RData::NS(Box::new(NS(Name::from_str("ns1.example.com.").unwrap()))),
             ),
             Record::from_rdata(
                 Name::from_str("example.com.").unwrap(),
                 3600,
-                RData::NS(NS(Name::from_str("ns2.example.com.").unwrap())),
+                RData::NS(Box::new(NS(Name::from_str("ns2.example.com.").unwrap()))),
             ),
         ]);
 
@@ -1112,7 +1123,7 @@ mod tests {
             Record::from_rdata(
                 Name::from_str("www.example.com.").unwrap(),
                 300,
-                RData::CNAME(CNAME(Name::from_str("v4.example.com.").unwrap())),
+                RData::CNAME(Box::new(CNAME(Name::from_str("v4.example.com.").unwrap()))),
             ),
             Record::from_rdata(
                 Name::from_str("v4.example.com.").unwrap(),
@@ -1125,7 +1136,7 @@ mod tests {
         message.insert_authorities(vec![Record::from_rdata(
             Name::from_str("example.com.").unwrap(),
             3600,
-            RData::NS(NS(Name::from_str("ns1.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns1.example.com.").unwrap()))),
         )]);
 
         // ADDITIONAL section: Glue for NS
@@ -1225,7 +1236,7 @@ mod tests {
             Record::from_rdata(
                 Name::from_str("www.example.com.").unwrap(),
                 300,
-                RData::CNAME(CNAME(Name::from_str("v4.example.com.").unwrap())),
+                RData::CNAME(Box::new(CNAME(Name::from_str("v4.example.com.").unwrap()))),
             ),
             Record::from_rdata(
                 Name::from_str("v4.example.com.").unwrap(),
@@ -1237,7 +1248,7 @@ mod tests {
         message.insert_authorities(vec![Record::from_rdata(
             Name::from_str("example.com.").unwrap(),
             3600,
-            RData::NS(NS(Name::from_str("ns1.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns1.example.com.").unwrap()))),
         )]);
 
         message.insert_additionals(vec![Record::from_rdata(
@@ -1314,14 +1325,14 @@ mod tests {
         message1.insert_answers(vec![Record::from_rdata(
             Name::from_str("www.example.com.").unwrap(),
             300,
-            RData::CNAME(CNAME(Name::from_str("v4.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(Name::from_str("v4.example.com.").unwrap()))),
         )]);
 
         // AUTHORITY from first response (should NOT be in final result)
         message1.insert_authorities(vec![Record::from_rdata(
             Name::from_str("www-zone.example.com.").unwrap(),
             3600,
-            RData::NS(NS(Name::from_str("ns-www.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns-www.example.com.").unwrap()))),
         )]);
 
         // ADDITIONAL from first response (should NOT be in final result)
@@ -1348,7 +1359,7 @@ mod tests {
         message2.insert_authorities(vec![Record::from_rdata(
             Name::from_str("v4-zone.example.com.").unwrap(),
             3600,
-            RData::NS(NS(Name::from_str("ns-v4.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns-v4.example.com.").unwrap()))),
         )]);
 
         // ADDITIONAL from second response (SHOULD be in final result)
@@ -1495,13 +1506,13 @@ mod tests {
         message1.insert_answers(vec![Record::from_rdata(
             Name::from_str("www.example.com.").unwrap(),
             300,
-            RData::CNAME(CNAME(Name::from_str("v4.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(Name::from_str("v4.example.com.").unwrap()))),
         )]);
 
         message1.insert_authorities(vec![Record::from_rdata(
             Name::from_str("www-zone.example.com.").unwrap(),
             3600,
-            RData::NS(NS(Name::from_str("ns-www.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns-www.example.com.").unwrap()))),
         )]);
 
         message1.insert_additionals(vec![Record::from_rdata(
@@ -1526,7 +1537,7 @@ mod tests {
         message2.insert_authorities(vec![Record::from_rdata(
             Name::from_str("v4-zone.example.com.").unwrap(),
             3600,
-            RData::NS(NS(Name::from_str("ns-v4.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns-v4.example.com.").unwrap()))),
         )]);
 
         message2.insert_additionals(vec![Record::from_rdata(
@@ -1657,7 +1668,9 @@ mod tests {
         message.insert_answers(vec![Record::from_rdata(
             Name::from_str("ttl.example.com.").unwrap(),
             first,
-            RData::CNAME(CNAME(Name::from_str("actual.example.com.").unwrap())),
+            RData::CNAME(Box::new(CNAME(
+                Name::from_str("actual.example.com.").unwrap(),
+            ))),
         )]);
         message.insert_additionals(vec![Record::from_rdata(
             Name::from_str("actual.example.com.").unwrap(),

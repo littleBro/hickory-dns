@@ -214,7 +214,7 @@ mod tests {
         message.add_authority(Record::from_rdata(
             Name::from_str("example.com.").unwrap(),
             80,
-            RData::NS(NS(Name::from_str("ns1.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns1.example.com.").unwrap()))),
         ));
         message.add_additionals(vec![Record::from_rdata(
             Name::from_str("ns1.example.com.").unwrap(),
@@ -271,7 +271,7 @@ mod tests {
         message1.add_authority(Record::from_rdata(
             Name::from_str("example.com.").unwrap(),
             80,
-            RData::NS(NS(Name::from_str("ns1.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns1.example.com.").unwrap()))),
         ));
         message1.add_additionals(vec![Record::from_rdata(
             Name::from_str("ns1.example.com.").unwrap(),
@@ -295,7 +295,7 @@ mod tests {
         message2.add_authority(Record::from_rdata(
             Name::from_str("example.com.").unwrap(),
             80,
-            RData::NS(NS(Name::from_str("ns2.example.com.").unwrap())),
+            RData::NS(Box::new(NS(Name::from_str("ns2.example.com.").unwrap()))),
         ));
         message2.add_additionals(vec![Record::from_rdata(
             Name::from_str("ns2.example.com.").unwrap(),

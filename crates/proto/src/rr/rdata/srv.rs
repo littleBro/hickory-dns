@@ -6,6 +6,7 @@
 // copied, modified, or distributed except according to those terms.
 
 //! service records for identify port mapping for specific services on a host
+use alloc::boxed::Box;
 use alloc::string::ToString;
 use core::{fmt, str::FromStr};
 
@@ -264,7 +265,7 @@ impl RecordData for SRV {
     }
 
     fn into_rdata(self) -> RData {
-        RData::SRV(self)
+        RData::SRV(Box::new(self))
     }
 }
 

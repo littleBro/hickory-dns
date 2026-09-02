@@ -8,6 +8,7 @@
 //! record data enum variants
 #![allow(deprecated, clippy::use_self)] // allows us to deprecate RData types
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(test)]
 use core::convert::From;
@@ -39,6 +40,16 @@ use crate::{
 /// Record data enum variants for all valid DNS data types.
 ///
 /// This is used to represent the generic Record as it is read off the wire. Allows for a Record to be abstractly referenced without knowing it's internal until runtime.
+///
+/// # Size
+///
+/// An enum is as large as its largest variant, and every record collection pays that size per
+/// record, so `RData` is kept at 40 bytes on 64-bit targets: a variant whose payload is 56 bytes
+/// or more (`ANAME`, `CAA`, `CNAME`, `CSYNC`, `HTTPS`, `MX`, `NAPTR`, `NS`, `PTR`, `SOA`, `SRV`,
+/// `SVCB`, `TSIG` and the `DNSSEC` wrapper) holds it in a `Box`, and `test_rdata_is_small` fails
+/// when a new variant breaks the limit. Construct values through `From` (`RData::from(soa)`) or
+/// [`RecordData::into_rdata`] rather than by naming the variant, so that call sites do not depend
+/// on which variants are boxed.
 ///
 /// [RFC 1035](https://tools.ietf.org/html/rfc1035), DOMAIN NAMES - IMPLEMENTATION AND SPECIFICATION, November 1987
 ///
@@ -109,7 +120,7 @@ pub enum RData {
     ///
     ///       owner ttl class ANAME target
     /// ```
-    ANAME(ANAME),
+    ANAME(Box<ANAME>),
 
     /// ```text
     /// -- RFC 6844          Certification Authority Authorization     January 2013
@@ -139,7 +150,7 @@ pub enum RData {
     /// remaining octets in the Value field (m = d - n - 2) where d is the
     /// length of the RDATA section.
     /// ```
-    CAA(CAA),
+    CAA(Box<CAA>),
 
     /// ```text
     /// -- RFC 4398 -- Storing Certificates in DNS       November 1987
@@ -189,7 +200,7 @@ pub enum RData {
     /// choose to restart the query at the canonical name in certain cases.  See
     /// the description of name server logic in [RFC-1034] for details.
     /// ```
-    CNAME(CNAME),
+    CNAME(Box<CNAME>),
 
     /// ```text
     /// 2.1.  The CSYNC Resource Record Format
@@ -208,7 +219,7 @@ pub enum RData {
     /// /                     Type Bit Map (continued)                  /
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     /// ```
-    CSYNC(CSYNC),
+    CSYNC(Box<CSYNC>),
 
     /// ```text
     /// 3.3.2. HINFO RDATA format
@@ -254,7 +265,7 @@ pub enum RData {
     ///
     ///    Name TTL IN HTTPS SvcPriority TargetName SvcParams
     /// ```
-    HTTPS(HTTPS),
+    HTTPS(Box<HTTPS>),
 
     /// ```text
     /// 3.3.9. MX RDATA format
@@ -279,7 +290,7 @@ pub enum RData {
     /// specified by EXCHANGE.  The use of MX RRs is explained in detail in
     /// [RFC-974].
     /// ```
-    MX(MX),
+    MX(Box<MX>),
 
     /// [RFC 3403 DDDS DNS Database, October 2002](https://tools.ietf.org/html/rfc3403#section-4)
     ///
@@ -390,7 +401,7 @@ pub enum RData {
     ///      returned that has values for both fields then it is considered to
     ///      be in error and SHOULD be either ignored or an error returned.
     /// ```
-    NAPTR(NAPTR),
+    NAPTR(Box<NAPTR>),
 
     /// ```text
     /// 3.3.10. NULL RDATA format (EXPERIMENTAL)
@@ -433,7 +444,7 @@ pub enum RData {
     /// hosts which are name servers for either Internet (IN) or Hesiod (HS)
     /// class information are normally queried using IN class protocols.
     /// ```
-    NS(NS),
+    NS(Box<NS>),
 
     /// [RFC 7929](https://tools.ietf.org/html/rfc7929#section-2.1)
     ///
@@ -494,7 +505,7 @@ pub enum RData {
     /// similar to that performed by CNAME, which identifies aliases.  See the
     /// description of the IN-ADDR.ARPA domain for an example.
     /// ```
-    PTR(PTR),
+    PTR(Box<PTR>),
 
     /// [RFC 8162](https://datatracker.ietf.org/doc/html/rfc8162#section-2)
     ///
@@ -568,7 +579,7 @@ pub enum RData {
     /// reason for this provision is to allow future dynamic update facilities to
     /// change the SOA RR with known semantics.
     /// ```
-    SOA(SOA),
+    SOA(Box<SOA>),
 
     /// ```text
     /// RFC 2782                       DNS SRV RR                  February 2000
@@ -577,7 +588,7 @@ pub enum RData {
     ///
     ///  _Service._Proto.Name TTL Class SRV Priority Weight Port Target
     /// ```
-    SRV(SRV),
+    SRV(Box<SRV>),
 
     /// [RFC 4255](https://tools.ietf.org/html/rfc4255#section-3.1)
     ///
@@ -665,7 +676,7 @@ pub enum RData {
     ///    domain names, binary data, or numeric values).  The initial
     ///    SvcParamKeys and their formats are defined in Section 7.
     /// ```
-    SVCB(SVCB),
+    SVCB(Box<SVCB>),
 
     /// [RFC 6698, DNS-Based Authentication for TLS](https://tools.ietf.org/html/rfc6698#section-2.1)
     ///
@@ -794,7 +805,7 @@ pub enum RData {
     ///      seconds (see Section 5.2.3).  This document assigns no meaning to
     ///      its contents in requests.
     /// ```
-    TSIG(TSIG),
+    TSIG(Box<TSIG>),
 
     /// ```text
     /// 3.3.14. TXT RDATA format
@@ -817,7 +828,7 @@ pub enum RData {
     /// These types are in `DNSSECRData` to make them easy to disable when
     /// crypto functionality isn't needed.
     #[cfg(feature = "__dnssec")]
-    DNSSEC(DNSSECRData),
+    DNSSEC(Box<DNSSECRData>),
 
     /// Unknown RecordData is for record types not supported by Hickory DNS
     Unknown {
@@ -911,14 +922,14 @@ impl RData {
             }
             RecordType::ANAME => {
                 trace!("reading ANAME");
-                ANAME::read(&mut decoder).map(Self::ANAME)
+                ANAME::read(&mut decoder).map(|x| Self::ANAME(Box::new(x)))
             }
             rt @ RecordType::ANY | rt @ RecordType::AXFR | rt @ RecordType::IXFR => {
                 return Err(DecodeError::UnknownRecordTypeValue(rt.into()));
             }
             RecordType::CAA => {
                 trace!("reading CAA");
-                CAA::read_data(&mut decoder).map(Self::CAA)
+                CAA::read_data(&mut decoder).map(|x| Self::CAA(Box::new(x)))
             }
             RecordType::CERT => {
                 trace!("reading CERT");
@@ -926,11 +937,11 @@ impl RData {
             }
             RecordType::CNAME => {
                 trace!("reading CNAME");
-                CNAME::read(&mut decoder).map(Self::CNAME)
+                CNAME::read(&mut decoder).map(|x| Self::CNAME(Box::new(x)))
             }
             RecordType::CSYNC => {
                 trace!("reading CSYNC");
-                CSYNC::read_data(&mut decoder).map(Self::CSYNC)
+                CSYNC::read_data(&mut decoder).map(|x| Self::CSYNC(Box::new(x)))
             }
             RecordType::HINFO => {
                 trace!("reading HINFO");
@@ -938,7 +949,7 @@ impl RData {
             }
             RecordType::HTTPS => {
                 trace!("reading HTTPS");
-                HTTPS::read_data(&mut decoder).map(Self::HTTPS)
+                HTTPS::read_data(&mut decoder).map(|x| Self::HTTPS(Box::new(x)))
             }
             RecordType::ZERO => {
                 trace!("reading EMPTY");
@@ -949,11 +960,11 @@ impl RData {
             }
             RecordType::MX => {
                 trace!("reading MX");
-                MX::read_data(&mut decoder).map(Self::MX)
+                MX::read_data(&mut decoder).map(|x| Self::MX(Box::new(x)))
             }
             RecordType::NAPTR => {
                 trace!("reading NAPTR");
-                NAPTR::read_data(&mut decoder).map(Self::NAPTR)
+                NAPTR::read_data(&mut decoder).map(|x| Self::NAPTR(Box::new(x)))
             }
             RecordType::NULL => {
                 trace!("reading NULL");
@@ -961,7 +972,7 @@ impl RData {
             }
             RecordType::NS => {
                 trace!("reading NS");
-                NS::read(&mut decoder).map(Self::NS)
+                NS::read(&mut decoder).map(|x| Self::NS(Box::new(x)))
             }
             RecordType::OPENPGPKEY => {
                 trace!("reading OPENPGPKEY");
@@ -973,7 +984,7 @@ impl RData {
             }
             RecordType::PTR => {
                 trace!("reading PTR");
-                PTR::read(&mut decoder).map(Self::PTR)
+                PTR::read(&mut decoder).map(|x| Self::PTR(Box::new(x)))
             }
             RecordType::SMIMEA => {
                 trace!("reading SMIMEA");
@@ -981,11 +992,11 @@ impl RData {
             }
             RecordType::SOA => {
                 trace!("reading SOA");
-                SOA::read_data(&mut decoder).map(Self::SOA)
+                SOA::read_data(&mut decoder).map(|x| Self::SOA(Box::new(x)))
             }
             RecordType::SRV => {
                 trace!("reading SRV");
-                SRV::read_data(&mut decoder).map(Self::SRV)
+                SRV::read_data(&mut decoder).map(|x| Self::SRV(Box::new(x)))
             }
             RecordType::SSHFP => {
                 trace!("reading SSHFP");
@@ -993,7 +1004,7 @@ impl RData {
             }
             RecordType::SVCB => {
                 trace!("reading SVCB");
-                SVCB::read_data(&mut decoder).map(Self::SVCB)
+                SVCB::read_data(&mut decoder).map(|x| Self::SVCB(Box::new(x)))
             }
             RecordType::TLSA => {
                 trace!("reading TLSA");
@@ -1001,14 +1012,16 @@ impl RData {
             }
             RecordType::TSIG => {
                 trace!("reading TSIG");
-                TSIG::read_data(&mut decoder).map(Self::TSIG)
+                TSIG::read_data(&mut decoder).map(|x| Self::TSIG(Box::new(x)))
             }
             RecordType::TXT => {
                 trace!("reading TXT");
                 TXT::read_data(&mut decoder).map(Self::TXT)
             }
             #[cfg(feature = "__dnssec")]
-            r if r.is_dnssec() => DNSSECRData::read(&mut decoder, record_type).map(Self::DNSSEC),
+            r if r.is_dnssec() => {
+                DNSSECRData::read(&mut decoder, record_type).map(|x| Self::DNSSEC(Box::new(x)))
+            }
             record_type => {
                 trace!("reading Unknown record: {}", record_type);
                 NULL::read_data(&mut decoder).map(|rdata| Self::Unknown {
@@ -1057,32 +1070,32 @@ impl RData {
         let rdata = match record_type {
             RecordType::A => Self::A(A::from_tokens(tokens)?),
             RecordType::AAAA => Self::AAAA(AAAA::from_tokens(tokens)?),
-            RecordType::ANAME => Self::ANAME(ANAME(Name::from_tokens(tokens, origin)?)),
+            RecordType::ANAME => Self::ANAME(Box::new(ANAME(Name::from_tokens(tokens, origin)?))),
             RecordType::ANY => return Err(ParseError::from("parsing ANY doesn't make sense")),
             RecordType::AXFR => return Err(ParseError::from("parsing AXFR doesn't make sense")),
-            RecordType::CAA => Self::CAA(CAA::from_tokens(tokens)?),
+            RecordType::CAA => Self::CAA(Box::new(CAA::from_tokens(tokens)?)),
             RecordType::CERT => Self::CERT(CERT::from_tokens(tokens)?),
-            RecordType::CNAME => Self::CNAME(CNAME(Name::from_tokens(tokens, origin)?)),
-            RecordType::CSYNC => Self::CSYNC(CSYNC::from_tokens(tokens)?),
+            RecordType::CNAME => Self::CNAME(Box::new(CNAME(Name::from_tokens(tokens, origin)?))),
+            RecordType::CSYNC => Self::CSYNC(Box::new(CSYNC::from_tokens(tokens)?)),
             RecordType::HINFO => Self::HINFO(HINFO::from_tokens(tokens)?),
-            RecordType::HTTPS => Self::HTTPS(HTTPS(SVCB::from_tokens(tokens)?)),
+            RecordType::HTTPS => Self::HTTPS(Box::new(HTTPS(SVCB::from_tokens(tokens)?))),
             RecordType::IXFR => return Err(ParseError::from("parsing IXFR doesn't make sense")),
-            RecordType::MX => Self::MX(MX::from_tokens(tokens, origin)?),
-            RecordType::NAPTR => Self::NAPTR(NAPTR::from_tokens(tokens, origin)?),
+            RecordType::MX => Self::MX(Box::new(MX::from_tokens(tokens, origin)?)),
+            RecordType::NAPTR => Self::NAPTR(Box::new(NAPTR::from_tokens(tokens, origin)?)),
             RecordType::NULL => {
                 return Err(ParseError::Message(
                     "parse is not implemented for NULL record",
                 ));
             }
-            RecordType::NS => Self::NS(NS(Name::from_tokens(tokens, origin)?)),
+            RecordType::NS => Self::NS(Box::new(NS(Name::from_tokens(tokens, origin)?))),
             RecordType::OPENPGPKEY => Self::OPENPGPKEY(OPENPGPKEY::from_tokens(tokens)?),
             RecordType::OPT => return Err(ParseError::from("parsing OPT doesn't make sense")),
-            RecordType::PTR => Self::PTR(PTR(Name::from_tokens(tokens, origin)?)),
+            RecordType::PTR => Self::PTR(Box::new(PTR(Name::from_tokens(tokens, origin)?))),
             RecordType::SMIMEA => Self::SMIMEA(SMIMEA::from_tokens(tokens)?),
-            RecordType::SOA => Self::SOA(SOA::from_tokens(tokens, origin)?),
-            RecordType::SRV => Self::SRV(SRV::from_tokens(tokens, origin)?),
+            RecordType::SOA => Self::SOA(Box::new(SOA::from_tokens(tokens, origin)?)),
+            RecordType::SRV => Self::SRV(Box::new(SRV::from_tokens(tokens, origin)?)),
             RecordType::SSHFP => Self::SSHFP(SSHFP::from_tokens(tokens)?),
-            RecordType::SVCB => Self::SVCB(SVCB::from_tokens(tokens)?),
+            RecordType::SVCB => Self::SVCB(Box::new(SVCB::from_tokens(tokens)?)),
             RecordType::TLSA => Self::TLSA(TLSA::from_tokens(tokens)?),
             RecordType::TXT => Self::TXT(TXT::from_tokens(tokens)?),
             RecordType::SIG => return Err(ParseError::from("parsing SIG doesn't make sense")),
@@ -1094,7 +1107,7 @@ impl RData {
             }
             RecordType::KEY => return Err(ParseError::from("KEY should be dynamically generated")),
             #[cfg(feature = "__dnssec")]
-            RecordType::DS => Self::DNSSEC(DNSSECRData::DS(DS::from_tokens(tokens)?)),
+            RecordType::DS => Self::DNSSEC(Box::new(DNSSECRData::DS(DS::from_tokens(tokens)?))),
             #[cfg(not(feature = "__dnssec"))]
             RecordType::DS => return Err(ParseError::from("DS should be dynamically generated")),
             RecordType::CDS => return Err(ParseError::from("CDS should be dynamically generated")),
@@ -1344,6 +1357,24 @@ impl From<Ipv6Addr> for RData {
     }
 }
 
+/// `From` for the boxed variants, which box the payload themselves so that call sites do not
+/// depend on which variants are boxed; see the note on [`RData`].
+macro_rules! from_boxed_variant {
+    ($($variant:ident),* $(,)?) => {
+        $(
+            impl From<$variant> for RData {
+                fn from(rdata: $variant) -> Self {
+                    RData::$variant(Box::new(rdata))
+                }
+            }
+        )*
+    };
+}
+
+from_boxed_variant!(
+    ANAME, CAA, CNAME, CSYNC, HTTPS, MX, NAPTR, NS, PTR, SOA, SRV, SVCB, TSIG
+);
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::dbg_macro, clippy::print_stdout)]
@@ -1358,35 +1389,61 @@ mod tests {
     use crate::rr::rdata::{MX, SOA, SRV, TXT};
     use crate::serialize::binary::bin_tests::test_emit_data_set;
 
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn test_rdata_is_small() {
+        assert!(
+            size_of::<RData>() <= 40,
+            "RData is {} bytes: new large variants should be boxed",
+            size_of::<RData>()
+        );
+    }
+
+    #[test]
+    fn test_from_boxed_variants() {
+        // `From` boxes the payload exactly as `into_rdata` does, so both constructions are
+        // independent of the layout.
+        let name = Name::from_str("www.example.com.").unwrap();
+        assert_eq!(
+            RData::from(CNAME(name.clone())),
+            CNAME(name.clone()).into_rdata()
+        );
+        assert_eq!(
+            RData::from(MX::new(10, name.clone())),
+            MX::new(10, name.clone()).into_rdata()
+        );
+        assert!(matches!(RData::from(PTR(name)), RData::PTR(_)));
+    }
+
     fn get_data() -> Vec<(RData, Vec<u8>)> {
         vec![
             (
-                RData::CNAME(CNAME(Name::from_str("www.example.com.").unwrap())),
+                RData::CNAME(Box::new(CNAME(Name::from_str("www.example.com.").unwrap()))),
                 vec![
                     3, b'w', b'w', b'w', 7, b'e', b'x', b'a', b'm', b'p', b'l', b'e', 3, b'c',
                     b'o', b'm', 0,
                 ],
             ),
             (
-                RData::MX(MX::new(256, Name::from_str("n.").unwrap())),
+                RData::MX(Box::new(MX::new(256, Name::from_str("n.").unwrap()))),
                 vec![1, 0, 1, b'n', 0],
             ),
             (
-                RData::NS(NS(Name::from_str("www.example.com.").unwrap())),
+                RData::NS(Box::new(NS(Name::from_str("www.example.com.").unwrap()))),
                 vec![
                     3, b'w', b'w', b'w', 7, b'e', b'x', b'a', b'm', b'p', b'l', b'e', 3, b'c',
                     b'o', b'm', 0,
                 ],
             ),
             (
-                RData::PTR(PTR(Name::from_str("www.example.com.").unwrap())),
+                RData::PTR(Box::new(PTR(Name::from_str("www.example.com.").unwrap()))),
                 vec![
                     3, b'w', b'w', b'w', 7, b'e', b'x', b'a', b'm', b'p', b'l', b'e', 3, b'c',
                     b'o', b'm', 0,
                 ],
             ),
             (
-                RData::SOA(SOA::new(
+                RData::SOA(Box::new(SOA::new(
                     Name::from_str("www.example.com.").unwrap(),
                     Name::from_str("xxx.example.com.").unwrap(),
                     u32::MAX,
@@ -1394,7 +1451,7 @@ mod tests {
                     -1,
                     -1,
                     u32::MAX,
-                )),
+                ))),
                 vec![
                     3, b'w', b'w', b'w', 7, b'e', b'x', b'a', b'm', b'p', b'l', b'e', 3, b'c',
                     b'o', b'm', 0, 3, b'x', b'x', b'x', 0xC0, 0x04, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -1419,12 +1476,12 @@ mod tests {
                 vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             ),
             (
-                RData::SRV(SRV::new(
+                RData::SRV(Box::new(SRV::new(
                     1,
                     2,
                     3,
                     Name::from_str("www.example.com.").unwrap(),
-                )),
+                ))),
                 vec![
                     0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 3, b'w', b'w', b'w', 7, b'e', b'x', b'a',
                     b'm', b'p', b'l', b'e', 3, b'c', b'o', b'm', 0,
@@ -1443,17 +1500,17 @@ mod tests {
         let ordered: Vec<RData> = vec![
             RData::A(A::from(Ipv4Addr::UNSPECIFIED)),
             RData::AAAA(AAAA::from(Ipv6Addr::UNSPECIFIED)),
-            RData::SRV(SRV::new(
+            RData::SRV(Box::new(SRV::new(
                 1,
                 2,
                 3,
                 Name::from_str("www.example.com").unwrap(),
-            )),
-            RData::MX(MX::new(256, Name::from_str("n").unwrap())),
-            RData::CNAME(CNAME(Name::from_str("www.example.com").unwrap())),
-            RData::PTR(PTR(Name::from_str("www.example.com").unwrap())),
-            RData::NS(NS(Name::from_str("www.example.com").unwrap())),
-            RData::SOA(SOA::new(
+            ))),
+            RData::MX(Box::new(MX::new(256, Name::from_str("n").unwrap()))),
+            RData::CNAME(Box::new(CNAME(Name::from_str("www.example.com").unwrap()))),
+            RData::PTR(Box::new(PTR(Name::from_str("www.example.com").unwrap()))),
+            RData::NS(Box::new(NS(Name::from_str("www.example.com").unwrap()))),
+            RData::SOA(Box::new(SOA::new(
                 Name::from_str("www.example.com").unwrap(),
                 Name::from_str("xxx.example.com").unwrap(),
                 u32::MAX,
@@ -1461,7 +1518,7 @@ mod tests {
                 -1,
                 -1,
                 u32::MAX,
-            )),
+            ))),
             RData::TXT(TXT::new(vec![
                 "abcdef".to_string(),
                 "ghi".to_string(),
@@ -1470,11 +1527,11 @@ mod tests {
             ])),
         ];
         let mut unordered = vec![
-            RData::CNAME(CNAME(Name::from_str("www.example.com").unwrap())),
-            RData::MX(MX::new(256, Name::from_str("n").unwrap())),
-            RData::PTR(PTR(Name::from_str("www.example.com").unwrap())),
-            RData::NS(NS(Name::from_str("www.example.com").unwrap())),
-            RData::SOA(SOA::new(
+            RData::CNAME(Box::new(CNAME(Name::from_str("www.example.com").unwrap()))),
+            RData::MX(Box::new(MX::new(256, Name::from_str("n").unwrap()))),
+            RData::PTR(Box::new(PTR(Name::from_str("www.example.com").unwrap()))),
+            RData::NS(Box::new(NS(Name::from_str("www.example.com").unwrap()))),
+            RData::SOA(Box::new(SOA::new(
                 Name::from_str("www.example.com").unwrap(),
                 Name::from_str("xxx.example.com").unwrap(),
                 u32::MAX,
@@ -1482,7 +1539,7 @@ mod tests {
                 -1,
                 -1,
                 u32::MAX,
-            )),
+            ))),
             RData::TXT(TXT::new(vec![
                 "abcdef".to_string(),
                 "ghi".to_string(),
@@ -1491,12 +1548,12 @@ mod tests {
             ])),
             RData::A(A::from(Ipv4Addr::UNSPECIFIED)),
             RData::AAAA(AAAA::from(Ipv6Addr::UNSPECIFIED)),
-            RData::SRV(SRV::new(
+            RData::SRV(Box::new(SRV::new(
                 1,
                 2,
                 3,
                 Name::from_str("www.example.com").unwrap(),
-            )),
+            ))),
         ];
 
         unordered.sort();
@@ -1605,7 +1662,7 @@ mod tests {
 
         assert_eq!(
             record,
-            RData::NS(NS(Name::from_str("ns.example.com").unwrap()))
+            RData::NS(Box::new(NS(Name::from_str("ns.example.com").unwrap())))
         );
     }
 
@@ -1622,12 +1679,12 @@ mod tests {
 
         assert_eq!(
             record,
-            RData::CSYNC(CSYNC::new(
+            RData::CSYNC(Box::new(CSYNC::new(
                 123,
                 true,
                 false,
                 [RecordType::A, RecordType::NS]
-            ))
+            )))
         );
     }
 
@@ -1638,12 +1695,12 @@ mod tests {
 
         assert_eq!(
             record,
-            RData::CSYNC(CSYNC::new(
+            RData::CSYNC(Box::new(CSYNC::new(
                 123,
                 true,
                 false,
                 [RecordType::A, RecordType::NS]
-            ))
+            )))
         );
     }
 
@@ -1668,7 +1725,7 @@ mod tests {
 
         assert_eq!(
             record,
-            RData::DNSSEC(DNSSECRData::DS(DS::new(
+            RData::DNSSEC(Box::new(DNSSECRData::DS(DS::new(
                 60485,
                 crate::dnssec::Algorithm::RSASHA1,
                 crate::dnssec::DigestType::SHA1,
@@ -1676,7 +1733,7 @@ mod tests {
                     0x2B, 0xB1, 0x83, 0xAF, 0x5F, 0x22, 0x58, 0x81, 0x79, 0xA5, 0x3B, 0x0A, 0x98,
                     0x63, 0x1F, 0xAD, 0x1A, 0x29, 0x21, 0x18
                 ]
-            )))
+            ))))
         );
     }
 

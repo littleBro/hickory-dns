@@ -274,7 +274,7 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
         Record::from_rdata(
             origin.clone(),
             TTL,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 Name::parse("mname", Some(&origin)).unwrap(),
                 Name::parse("rname", Some(&origin)).unwrap(),
                 SERIAL,
@@ -282,7 +282,7 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
                 300,
                 3600000,
                 TTL,
-            )),
+            ))),
         ),
         SERIAL,
     );
@@ -290,7 +290,7 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
         Record::from_rdata(
             origin.clone(),
             TTL,
-            RData::NS(NS(Name::parse("ns.example.com.", None).unwrap())),
+            RData::NS(Box::new(NS(Name::parse("ns.example.com.", None).unwrap()))),
         ),
         SERIAL,
     );
@@ -298,7 +298,7 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
         Record::from_rdata(
             origin.clone(),
             TTL,
-            RData::NS(NS(Name::parse("ns.example.net.", None).unwrap())),
+            RData::NS(Box::new(NS(Name::parse("ns.example.net.", None).unwrap()))),
         ),
         SERIAL,
     );
@@ -314,7 +314,10 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
         Record::from_rdata(
             Name::parse("*", Some(&origin)).unwrap(),
             TTL,
-            RData::MX(MX::new(10, Name::parse("host1", Some(&origin)).unwrap())),
+            RData::MX(Box::new(MX::new(
+                10,
+                Name::parse("host1", Some(&origin)).unwrap(),
+            ))),
         ),
         SERIAL,
     );
@@ -338,12 +341,12 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
         Record::from_rdata(
             Name::parse("_ssh._tcp.host1", Some(&origin)).unwrap(),
             TTL,
-            RData::SRV(SRV::new(
+            RData::SRV(Box::new(SRV::new(
                 0,
                 0,
                 22,
                 Name::parse("ssh.example.com.", None).unwrap(),
-            )),
+            ))),
         ),
         SERIAL,
     );
@@ -351,12 +354,12 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
         Record::from_rdata(
             Name::parse("_ssh._tcp.host2", Some(&origin)).unwrap(),
             TTL,
-            RData::SRV(SRV::new(
+            RData::SRV(Box::new(SRV::new(
                 0,
                 0,
                 22,
                 Name::parse("ssh.example.net.", None).unwrap(),
-            )),
+            ))),
         ),
         SERIAL,
     );
@@ -364,7 +367,7 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
         Record::from_rdata(
             Name::parse("subdel", Some(&origin)).unwrap(),
             TTL,
-            RData::NS(NS(Name::parse("ns.example.com.", None).unwrap())),
+            RData::NS(Box::new(NS(Name::parse("ns.example.com.", None).unwrap()))),
         ),
         SERIAL,
     );
@@ -372,7 +375,7 @@ async fn setup() -> (Client<TokioRuntimeProvider>, Server<Catalog>) {
         Record::from_rdata(
             Name::parse("subdel", Some(&origin)).unwrap(),
             TTL,
-            RData::NS(NS(Name::parse("ns.example.net.", None).unwrap())),
+            RData::NS(Box::new(NS(Name::parse("ns.example.net.", None).unwrap()))),
         ),
         SERIAL,
     );

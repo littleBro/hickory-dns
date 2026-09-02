@@ -296,7 +296,7 @@ impl RecordData for NAPTR {
     }
 
     fn into_rdata(self) -> RData {
-        RData::NAPTR(self)
+        RData::NAPTR(Box::new(self))
     }
 }
 

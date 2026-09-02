@@ -204,9 +204,9 @@ pub(crate) fn cname_loop_handler(request: Message, _transport: Transport) -> Res
             msg.add_answer(Record::from_rdata(
                 name.clone(),
                 1,
-                RData::CNAME(rdata::CNAME(
+                RData::CNAME(Box::new(rdata::CNAME(
                     Name::from_ascii(format!("c-{round}-{i}.testing.")).unwrap(),
-                )),
+                ))),
             ));
         }
     }
@@ -452,7 +452,9 @@ pub(crate) fn bailiwick_handler(request: Message, _transport: Transport) -> Resu
         msg.add_answer(Record::from_rdata(
             name,
             1,
-            RData::CNAME(rdata::CNAME(Name::from_ascii("host.otherdomain.testing.")?)),
+            RData::CNAME(Box::new(rdata::CNAME(Name::from_ascii(
+                "host.otherdomain.testing.",
+            )?))),
         ))
         .add_answer(Record::from_rdata(
             Name::from_ascii("host.otherdomain.testing.")?,
@@ -511,7 +513,7 @@ pub(crate) fn parent_ns_in_authority_handler(
         msg.add_answer(Record::from_rdata(
             zone,
             86400,
-            RData::NS(rdata::NS(ns_name)),
+            RData::NS(Box::new(rdata::NS(ns_name))),
         ));
     } else if q_type == RecordType::A && name == deep_sub {
         // A query for deep.sub — return a CNAME chain to target.example.testing.
@@ -522,7 +524,7 @@ pub(crate) fn parent_ns_in_authority_handler(
         msg.add_answer(Record::from_rdata(
             deep_sub,
             300,
-            RData::CNAME(rdata::CNAME(cname_target.clone())),
+            RData::CNAME(Box::new(rdata::CNAME(cname_target.clone()))),
         ));
         msg.add_answer(Record::from_rdata(
             cname_target,
@@ -539,7 +541,7 @@ pub(crate) fn parent_ns_in_authority_handler(
         msg.add_answer(Record::from_rdata(
             zone,
             86400,
-            RData::NS(rdata::NS(ns_name)),
+            RData::NS(Box::new(rdata::NS(ns_name))),
         ));
     } else if q_type == RecordType::NS && zone.zone_of(&name) {
         // NS query for a deeper subdomain (e.g. deep.sub.example.testing.) —
@@ -572,11 +574,15 @@ pub(crate) fn nxdomain_with_ns_authority_handler(
     msg.metadata.response_code = ResponseCode::NXDomain;
 
     let soa = rdata::SOA::new(ns_name.clone(), ns_name.clone(), 1, 3600, 600, 604800, 300);
-    msg.add_authority(Record::from_rdata(zone.clone(), 300, RData::SOA(soa)));
+    msg.add_authority(Record::from_rdata(
+        zone.clone(),
+        300,
+        RData::SOA(Box::new(soa)),
+    ));
     msg.add_authority(Record::from_rdata(
         zone,
         300,
-        RData::NS(rdata::NS(ns_name.clone())),
+        RData::NS(Box::new(rdata::NS(ns_name.clone()))),
     ));
     msg.add_additional(Record::from_rdata(
         ns_name,
@@ -685,9 +691,11 @@ impl Handler for DropRrsetHandler {
                 if record.record_type() == self.record_type {
                     return false;
                 }
-                if let RData::DNSSEC(DNSSECRData::RRSIG(rrsig)) = &record.data {
-                    if rrsig.input().type_covered == self.record_type {
-                        return false;
+                if let RData::DNSSEC(rdata) = &record.data {
+                    if let DNSSECRData::RRSIG(rrsig) = rdata.as_ref() {
+                        if rrsig.input().type_covered == self.record_type {
+                            return false;
+                        }
                     }
                 }
                 true

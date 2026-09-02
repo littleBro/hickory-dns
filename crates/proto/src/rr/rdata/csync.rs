@@ -7,6 +7,7 @@
 
 //! CSYNC record for synchronizing data from a child zone to the parent
 
+use alloc::boxed::Box;
 use alloc::{collections::BTreeSet, string::ToString};
 use core::{fmt, str::FromStr};
 
@@ -241,7 +242,7 @@ impl RecordData for CSYNC {
     }
 
     fn into_rdata(self) -> RData {
-        RData::CSYNC(self)
+        RData::CSYNC(Box::new(self))
     }
 }
 

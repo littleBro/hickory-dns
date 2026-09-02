@@ -81,7 +81,7 @@ fn new_large_catalog(num_records: u32) -> Catalog {
         Record::from_rdata(
             name.clone(),
             86400,
-            RData::SOA(SOA::new(
+            RData::SOA(Box::new(SOA::new(
                 n("sns.dns.icann.org."),
                 n("noc.dns.icann.org."),
                 2015082403,
@@ -89,7 +89,7 @@ fn new_large_catalog(num_records: u32) -> Catalog {
                 3600,
                 1209600,
                 3600,
-            )),
+            ))),
         ),
         0,
     );

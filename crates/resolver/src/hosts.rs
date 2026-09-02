@@ -98,7 +98,9 @@ impl Hosts {
                     None => false,
                 },
             })
-            .map(|(n, _)| Record::from_rdata(name.clone(), MAX_TTL, RData::PTR(PTR(n.clone()))))
+            .map(|(n, _)| {
+                Record::from_rdata(name.clone(), MAX_TTL, RData::PTR(Box::new(PTR(n.clone()))))
+            })
             .collect::<Arc<[Record]>>();
 
         match records.is_empty() {
@@ -348,12 +350,12 @@ mod tests {
                 Record::from_rdata(
                     name.clone(),
                     MAX_TTL,
-                    RData::PTR(PTR("a.example.com.".parse().unwrap()))
+                    RData::PTR(Box::new(PTR("a.example.com.".parse().unwrap())))
                 ),
                 Record::from_rdata(
                     name,
                     MAX_TTL,
-                    RData::PTR(PTR("b.example.com.".parse().unwrap()))
+                    RData::PTR(Box::new(PTR("b.example.com.".parse().unwrap())))
                 )
             ]
         );
@@ -370,7 +372,7 @@ mod tests {
             &[Record::from_rdata(
                 name,
                 MAX_TTL,
-                RData::PTR(PTR("localhost.".parse().unwrap()))
+                RData::PTR(Box::new(PTR("localhost.".parse().unwrap())))
             )]
         );
     }
