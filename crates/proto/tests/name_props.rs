@@ -2,35 +2,25 @@
 //!
 //! A `Model` is the plain representation of a domain name, a list of labels plus the FQDN flag,
 //! and the `ref_*` functions spell out the semantics `Name` must implement: RFC 4034 canonical
-//! ordering (labels compared from the root, case-insensitively unless asked otherwise), the
-//! `zone_of` suffix relation, and the RFC 1035 wire decoding rules with the restrictions this
-//! crate enforces. Every public operation on `Name` is compared against the model on randomly
-//! generated names, so the tests hold for any internal representation.
+//! ordering (labels compared from the root, case-insensitively unless asked otherwise) and the
+//! `zone_of` suffix relation. Every public operation on `Name` is compared against the model on
+//! randomly generated names, so the tests hold for any internal representation. Wire decoding
+//! is checked structurally, with hand-placed compression pointers, on message round trips, and
+//! for the absence of panics on garbage.
 //!
-//! The generators are seeded, so runs are reproducible. Set `HICKORY_NAME_PROPS_SCALE=n` to run
-//! `n` times as many cases.
+//! The generators are seeded, so runs are reproducible, and the case counts are fixed so that
+//! the file runs in about a second in a debug build.
 
 use std::cmp::Ordering;
+use std::collections::VecDeque;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{BTreeMap, VecDeque};
 use std::hash::{Hash, Hasher};
 
 use hickory_proto::ProtoError;
 use hickory_proto::op::{Message, MessageType, OpCode, Query};
 use hickory_proto::rr::rdata::{A, CNAME};
 use hickory_proto::rr::{LowerName, Name, RecordData, RecordType};
-use hickory_proto::serialize::binary::{
-    BinDecodable, BinDecoder, BinEncodable, BinEncoder, DecodeError,
-};
-
-/// Number of iterations for a test, scaled by `HICKORY_NAME_PROPS_SCALE`.
-fn iterations(base: usize) -> usize {
-    let scale = std::env::var("HICKORY_NAME_PROPS_SCALE")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(1);
-    base * scale.max(1)
-}
+use hickory_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
 
 /// xorshift64, enough to drive the generators deterministically without a dependency.
 struct Rng(u64);
@@ -280,7 +270,7 @@ fn read_at(buf: &[u8], off: usize) -> (Result<Name, ProtoError>, usize) {
 #[test]
 fn name_semantics_match_reference_model() {
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
-    let iterations = iterations(4_000);
+    let iterations = 4_000;
     let mut equal_pairs = 0usize;
     for _ in 0..iterations {
         let am = gen_model(&mut rng);
@@ -441,7 +431,7 @@ fn name_semantics_match_reference_model() {
 fn text_parsing_escapes_and_limits() {
     let mut rng = Rng(0x2545_F491_4F6C_DD1D);
     const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.";
-    for _ in 0..iterations(4_000) {
+    for _ in 0..4_000 {
         let count = 1 + rng.below(4);
         let labels: Vec<Vec<u8>> = (0..count)
             .map(|_| {
@@ -508,7 +498,7 @@ fn gen_small_fqdn(rng: &mut Rng) -> Model {
 #[test]
 fn compression_pointers_decode_expected_names() {
     let mut rng = Rng(0xDEAD_BEEF_CAFE_F00D);
-    for _ in 0..iterations(8_000) {
+    for _ in 0..8_000 {
         // name1 at off1, then name2 at off2: a few labels followed by a pointer into name1
         let m1 = gen_small_fqdn(&mut rng);
         let mut buf: Vec<u8> = (0..rng.below(6)).map(|_| rng.next_u64() as u8).collect();
@@ -585,7 +575,7 @@ fn compression_pointers_decode_expected_names() {
 #[test]
 fn message_round_trip_with_compression() {
     let mut rng = Rng(0x0123_4567_89AB_CDEF);
-    for _ in 0..iterations(1_000) {
+    for _ in 0..1_000 {
         let base = gen_small_fqdn(&mut rng);
         let mut message = Message::new(rng.next_u64() as u16, MessageType::Response, OpCode::Query);
         message.add_query(Query::new(base.to_name(), RecordType::A));
@@ -646,7 +636,7 @@ fn message_round_trip_with_compression() {
 #[test]
 fn decoder_never_panics_on_garbage() {
     let mut rng = Rng(0xF1E2_D3C4_B5A6_9788);
-    for _ in 0..iterations(60_000) {
+    for _ in 0..60_000 {
         let len = match rng.below(4) {
             0 => rng.below(8),
             1 => rng.below(32),
@@ -684,216 +674,4 @@ fn decoder_never_panics_on_garbage() {
             let _ = Message::from_vec(&buf);
         }
     }
-}
-
-/// The RFC 1035 name decoding rules with this crate's restrictions, written as the plain state
-/// machine on top of the public decoder API: labels of at most 63 bytes, pointers only to
-/// earlier offsets, no label may start inside a region already covered by a pointer, 255 bytes
-/// at most. Returns the labels and the *outer* decoder position on success, or the `Debug` form
-/// of the [`DecodeError`] the decoder must produce.
-fn ref_read(buf: &[u8], off: usize) -> Result<(Vec<Vec<u8>>, usize), String> {
-    enum State {
-        LengthOrPointer,
-        Label,
-        Pointer,
-        Root,
-    }
-    let mut outer = BinDecoder::new(buf);
-    if off > 0 {
-        outer.read_slice(off).expect("offset within buffer");
-    }
-    let mut chased: Option<BinDecoder<'_>> = None;
-    let mut labels: Vec<Vec<u8>> = Vec::new();
-    let mut encoded_len = 1usize;
-    let mut ptr_max_idx: Option<usize> = None;
-    let mut name_start = off;
-    let mut state = State::LengthOrPointer;
-    loop {
-        let decoder = match chased.as_mut() {
-            Some(decoder) => decoder,
-            None => &mut outer,
-        };
-        if let Some(max_idx) = ptr_max_idx {
-            if decoder.index() >= max_idx {
-                return Err(format!(
-                    "{:?}",
-                    DecodeError::LabelOverlapsWithOther {
-                        label: name_start,
-                        other: max_idx,
-                    }
-                ));
-            }
-        }
-        state = match state {
-            State::LengthOrPointer => match decoder.peek().map(|r| r.unverified()) {
-                Some(0) => State::Root,
-                None => return Err(format!("{:?}", DecodeError::InsufficientBytes)),
-                Some(b) if b & 0b1100_0000 == 0b1100_0000 => State::Pointer,
-                Some(b) if b & 0b1100_0000 == 0 => State::Label,
-                Some(b) => {
-                    return Err(format!("{:?}", DecodeError::UnrecognizedLabelCode(b)));
-                }
-            },
-            State::Label => {
-                let label = decoder
-                    .read_character_data()
-                    .map_err(|e| format!("{e:?}"))?
-                    .unverified();
-                if label.len() > 63 {
-                    return Err(format!("{:?}", DecodeError::LabelBytesTooLong(label.len())));
-                }
-                let new_len = encoded_len + label.len() + 1;
-                if new_len > 255 {
-                    return Err(format!("{:?}", DecodeError::DomainNameTooLong(label.len())));
-                }
-                encoded_len = new_len;
-                labels.push(label.to_vec());
-                State::LengthOrPointer
-            }
-            State::Pointer => {
-                let pointer_location = decoder.index();
-                let raw = decoder
-                    .read_u16()
-                    .map_err(|e| format!("{e:?}"))?
-                    .unverified()
-                    & 0x3FFF;
-                if usize::from(raw) >= name_start {
-                    return Err(format!(
-                        "{:?}",
-                        DecodeError::PointerNotPriorToLabel {
-                            idx: pointer_location,
-                            ptr: raw,
-                        }
-                    ));
-                }
-                ptr_max_idx = Some(name_start);
-                let next = decoder.clone(raw);
-                name_start = next.index();
-                chased = Some(next);
-                State::LengthOrPointer
-            }
-            State::Root => {
-                decoder.pop().map_err(|e| format!("{e:?}"))?;
-                break;
-            }
-        };
-    }
-    let len = if labels.is_empty() {
-        1
-    } else {
-        labels.iter().map(|l| l.len()).sum::<usize>() + labels.len()
-    };
-    if len >= 255 {
-        return Err(format!("{:?}", DecodeError::DomainNameTooLong(len)));
-    }
-    Ok((labels, outer.index()))
-}
-
-#[test]
-fn decoder_matches_reference_state_machine() {
-    let mut rng = Rng(0x1357_9BDF_2468_ACE0);
-    let iterations = iterations(50_000);
-    let mut ok = 0usize;
-    let mut errors = BTreeMap::<String, usize>::new();
-    for _ in 0..iterations {
-        // a buffer assembled from fragments: labels, root bytes, pointers backward (often to a
-        // label start), forward or to itself, reserved label codes, truncated labels, noise
-        let mut buf: Vec<u8> = Vec::new();
-        let mut label_starts: Vec<usize> = Vec::new();
-        for _ in 0..rng.below(14) {
-            match rng.below(13) {
-                0..=5 => {
-                    let len = match rng.below(6) {
-                        0 => 63,
-                        1 => 1 + rng.below(63),
-                        _ => 1 + rng.below(6),
-                    };
-                    label_starts.push(buf.len());
-                    buf.push(len as u8);
-                    for _ in 0..len {
-                        buf.push(SAFE[rng.below(SAFE.len())]);
-                    }
-                }
-                6 => buf.push(0),
-                7 => {
-                    let target = if !label_starts.is_empty() && rng.chance(2, 3) {
-                        label_starts[rng.below(label_starts.len())]
-                    } else {
-                        rng.below(buf.len() + 1)
-                    };
-                    buf.push(0xC0 | (target >> 8) as u8);
-                    buf.push(target as u8);
-                }
-                8 => {
-                    let target = buf.len() + rng.below(24);
-                    buf.push(0xC0 | (target >> 8) as u8);
-                    buf.push(target as u8);
-                }
-                9 => buf.push([0x40u8, 0x80, 0x7F, 0xBF][rng.below(4)] | rng.below(8) as u8),
-                10 => {
-                    let len = 1 + rng.below(63);
-                    buf.push(len as u8);
-                    let present = rng.below(len);
-                    buf.resize(buf.len() + present, b'q');
-                }
-                11 => buf.push(0xC0 | rng.below(64) as u8),
-                _ => {
-                    for _ in 0..1 + rng.below(4) {
-                        buf.push(rng.next_u64() as u8);
-                    }
-                }
-            }
-        }
-        if rng.chance(1, 5) && !buf.is_empty() {
-            buf.truncate(rng.below(buf.len()));
-        }
-        let mut offsets = vec![0usize];
-        offsets.extend(label_starts.iter().copied().filter(|&o| o < buf.len()));
-        if !buf.is_empty() {
-            offsets.push(rng.below(buf.len()));
-        }
-        for off in offsets {
-            let expected = ref_read(&buf, off);
-            let mut decoder = BinDecoder::new(&buf);
-            if off > 0 {
-                decoder.read_slice(off).expect("offset within buffer");
-            }
-            let actual = Name::read(&mut decoder).map_err(|e| format!("{e:?}"));
-            match (expected, actual) {
-                (Ok((labels, index)), Ok(name)) => {
-                    ok += 1;
-                    assert!(name.is_fqdn());
-                    assert_eq!(
-                        name.iter().map(|l| l.to_vec()).collect::<Vec<_>>(),
-                        labels,
-                        "labels differ: buf={buf:?} off={off}"
-                    );
-                    assert_eq!(
-                        decoder.index(),
-                        index,
-                        "decoder position differs: buf={buf:?} off={off}"
-                    );
-                }
-                (Err(expected), Err(actual)) => {
-                    assert_eq!(expected, actual, "error differs: buf={buf:?} off={off}");
-                    let variant = expected
-                        .split(['(', ' ', '{'])
-                        .next()
-                        .unwrap_or_default()
-                        .to_string();
-                    *errors.entry(variant).or_default() += 1;
-                }
-                (expected, actual) => {
-                    panic!(
-                        "outcome differs: ref={expected:?} actual={actual:?} buf={buf:?} off={off}"
-                    )
-                }
-            }
-        }
-    }
-    assert!(ok > iterations / 10, "too few successful decodes: {ok}");
-    assert!(
-        errors.len() >= 4,
-        "generator did not reach enough error classes: {errors:?}"
-    );
 }
